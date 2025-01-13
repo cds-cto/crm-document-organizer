@@ -1,10 +1,11 @@
 import configparser
 import json
 import os
+import time
 
 from openai import OpenAI
 
-from constants import TOKEN_LIMIT_CHUNK_SIZE
+from common.constants import TOKEN_LIMIT_CHUNK_SIZE
 
 
 class OpenAiAssistantService:
@@ -16,6 +17,7 @@ class OpenAiAssistantService:
         self.openai_api_key = config[config_name]["OPENAI_API_KEY"]
         self.vector_store_id = config[config_name]["VECTOR_STORE_ID"]
         self.assistant_id = config[config_name]["ASSISTANT_ID_V2"]
+        self.time_sleep_for_rate_limit = int(config[config_name]["TIME_SLEEP_FOR_RATE_LIMIT"])
 
         self.client = OpenAI(api_key=self.openai_api_key)
         self.openai_threads = self.client.beta.threads
@@ -43,6 +45,13 @@ class OpenAiAssistantService:
             result_json = {}
             thread_id = self.openai_threads.create().id
             for idx, chunk in enumerate(chunks):
+                # base on https://platform.openai.com/account/rate-limits Request and other limits	3 RPM => wait 60 seconds
+                print(f"Processing chunk {idx}")
+                if idx > 0 and idx % 2 == 0:
+                    print(f"Waiting {self.time_sleep_for_rate_limit} seconds for rate limit")
+                    thread_id = self.openai_threads.create().id
+                    time.sleep(self.time_sleep_for_rate_limit)
+
                 if idx == 0:
                     self.openai_threads.messages.create(
                         thread_id=thread_id,
@@ -69,7 +78,7 @@ class OpenAiAssistantService:
 
                     result_json = response_content[0].text.value
                 else:
-                    raise Exception(f"Processing failed or timed out at chunk {idx}")
+                    print(f"Processing failed:chunk {idx}: {run.last_error}")
 
             return result_json
 
@@ -211,9 +220,9 @@ Category Descriptions:
   - Keywords: Judgment summary, Garnishee defendant, Garnishment.
 
 - Category: SIF
-  - Document Identification: Source is Creditor.
-    - Includes: Have a full payment plan and payment date, Have account number, Have current balance.
-  - Keywords: Settlement agreement, Agree to settle, Less than full balance, Settlement terms, Settlement plan.
+  - Document Identification: Source is Creditor or Debt Collector
+    - Includes: Have a full payment plan and payment date, Have account number, Have current balance, Includes a reduced settlement amount to resolve the debt fully (typically stated as "less than the full balance") , Details on conditions for completing the settlement (e.g., deadlines, voiding terms if payments are missed), Indicates that a confirmation letter will be sent after the final payment is received.
+  - Keywords: Settlement agreement, Agree to settle, Less than full balance, Settlement terms, Settlement plan, Final payment confirmation.
 
 - Category: STIP
   - Document Identification: Source is Law firm or County Court.
@@ -242,7 +251,7 @@ Format the output as:
                     "FirstName": "{First Name or null if not found}",
                     "LastName": "{Last Name or null if not found}",
                     "Last4Ssn": "{Last 4 SSN or null if not found}",
-                    "AccountNumber": "{Extract only the numeric digits from the account number, get as many digits as possible or null if not found}",
+                    "AccountNumber": "Extract only the numeric digits from the account number, which may be abbreviated as 'Account No' or written as 'Account Number' in documents. Retrieve as many digits as possible, or return null if no numeric digits are found.",
                     "Address1": "{Address or null if not found}",
                     "State": "{State or null if not found}",
                     "City": "{City or null if not found}",
@@ -255,9 +264,7 @@ Strict Instructions:
 2. Ensure that the output contains the exact category name from the list and does not deviate.
 3. If the document does not match any category, respond with "null" for the "Category" field.
 4. Populate the "PersonalInformation" fields only if such data is explicitly found in the document; otherwise, return "null" for those fields.
-
 You must strictly adhere to the provided categories and formatting in your response.
-
 """,
             model="gpt-4o",
             temperature=0.1,

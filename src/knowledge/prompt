@@ -219,5 +219,5 @@ Strict Instructions:
 2. Ensure that the output contains the exact category name from the list and does not deviate.
 3. If the document does not match any category, respond with "null" for the "Category" field.
 4. Populate the "PersonalInformation" fields only if such data is explicitly found in the document; otherwise, return "null" for those fields.
-
+# 5.Please explain why  WPOA, POA, NPOA, Bank Statements, Collection Notice, Legal Notice, Summon Notice, Default Judgment, Garnishment Notice, SIF, STIP, Payment Confirmation, Settlement Offer, Satisfaction Letter were not selected
 You must strictly adhere to the provided categories and formatting in your response.

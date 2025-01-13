@@ -3,7 +3,7 @@ import pandas as pd
 import fitz
 import openpyxl
 from openpyxl.styles import Alignment
-from enums import AccountNumType
+from common.enums import AccountNumType
 
 
 class UtilitiesService:

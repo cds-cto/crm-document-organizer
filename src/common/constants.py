@@ -13,10 +13,10 @@ REDIS_INDEX_NAME = "users"
 
 ######################## OPENAI CONFIG ########################
 
-TOKEN_LIMIT_CHUNK_SIZE = 10000 
+TOKEN_LIMIT_CHUNK_SIZE = 20000
 
 ######################## CRM CONFIG ########################
-CHUNK_SIZE = 50
+CHUNK_SIZE = 100
 
 
 ######################## CONSTANTS ID ########################

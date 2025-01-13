@@ -1,7 +1,7 @@
 import configparser
 import os
 
-from constants import OCR_FOLDER, PDF_FOLDER
+from common.constants import OCR_FOLDER, PDF_FOLDER
 import pytesseract
 from pdf2image import convert_from_path
 from PIL import Image
@@ -15,10 +15,9 @@ class OCRService:
         config.read(config_file_path)
         self.WRITE_TO_FILE = config[config_name]["WRITE_TO_FILE"]
         self.DELETE_FILE = config[config_name]["DELETE_FILE"]
-        if os.name == "nt":  # for Windows
-            pytesseract.pytesseract.tesseract_cmd = (
-                r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-            )
+        # TODO: comment when deploy to production
+        # if os.name == "nt":  # Windows
+        #     pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
     # Extract Images from PDF
     def extract_images_from_pdf(self, pdf_file_path, output_folder, dpi=300):
@@ -40,9 +39,11 @@ class OCRService:
         file_name = os.path.splitext(os.path.basename(pdf_file_path))[0]
 
         try:
+            # TODO: comment when deploy to production
             # Convert PDF pages to images
-            poppler_PATH = os.path.join(self.current_folder, "poppler/bin")
-            pages = convert_from_path(pdf_file_path, dpi=dpi, poppler_path=poppler_PATH)
+            # poppler_PATH = os.path.join(self.current_folder, "poppler", "bin")
+            # pages = convert_from_path(pdf_file_path, dpi=dpi, poppler_path=poppler_PATH)
+            pages = convert_from_path(pdf_file_path, dpi=dpi)
             for page_number, page in enumerate(pages, start=1):
                 # Save each page as an image
                 image_filename = os.path.join(

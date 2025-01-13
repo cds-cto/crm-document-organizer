@@ -7,7 +7,7 @@ from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores.redis import Redis
 from datetime import datetime
 
-from constants import NUMBER_OF_DOCUMENTS_TO_RETURN, REDIS_INDEX_NAME
+from common.constants import CHUNK_SIZE, NUMBER_OF_DOCUMENTS_TO_RETURN, REDIS_INDEX_NAME
 
 
 class LangChainService:
@@ -43,9 +43,8 @@ class LangChainService:
         from concurrent.futures import ThreadPoolExecutor
 
         # chunk size
-        chunk_size = 100
         document_chunks = [
-            documents[i : i + chunk_size] for i in range(0, len(documents), chunk_size)
+            documents[i : i + CHUNK_SIZE] for i in range(0, len(documents), CHUNK_SIZE)
         ]
         self.saved_count = 0
         with ThreadPoolExecutor(max_workers=1) as executor:

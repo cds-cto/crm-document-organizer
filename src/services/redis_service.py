@@ -2,8 +2,8 @@ import configparser
 import os
 import redis
 
-from constants import REDIS_INDEX_NAME
-from enums import AccountNumType
+from common.constants import REDIS_INDEX_NAME
+from common.enums import AccountNumType
 
 
 class RedisService:

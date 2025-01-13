@@ -18,3 +18,10 @@ A powerful OCR (Optical Character Recognition) service for extracting text from 
 - Download and install Tesseract OCR from the [UB-Mannheim repository](https://github.com/UB-Mannheim/tesseract/wiki)
 - Download and install Poppler from [poppler-windows](http://blog.alivate.com.au/poppler-windows/)
 - Add Popper to src/poppler
+
+
+## Deploy to production
+
+- Comment the code in src/ocr_service.py: TODO: comment when deploy to production
+- Run the command: `docker-compose up --build -d`
+

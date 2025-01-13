@@ -7,8 +7,8 @@ import os
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores.redis import Redis
 from datetime import datetime
-from constants import NUMBER_OF_DOCUMENTS_TO_RETURN, REDIS_INDEX_NAME
-from enums import AccountNumType
+from common.constants import CHUNK_SIZE, NUMBER_OF_DOCUMENTS_TO_RETURN, REDIS_INDEX_NAME
+from common.enums import AccountNumType
 from concurrent.futures import ThreadPoolExecutor
 from langchain_community.vectorstores.redis import RedisTag
 from langchain_community.vectorstores import FAISS
@@ -31,26 +31,26 @@ class LangChainServiceV2:
             encode_kwargs=encode_kwargs,
         )
         vector_schema = {
-            "algorithm": "FLAT",  # Sử dụng FLAT để tìm kiếm chính xác
-            "distance_metric": "COSINE",  # Sử dụng Cosine Similarity
+            "algorithm": "FLAT",  # using FLAT to search exact
+            "distance_metric": "COSINE",  # using Cosine Similarity
         }
         self.vector_store_last4 = Redis(
             redis_url=self.redis_url,
             embedding=self.embedding,
             index_name="users_flat_last4",
-            vector_schema=vector_schema,  # Sử dụng FLAT schema
+            vector_schema=vector_schema,
         )
         self.vector_store_last12 = Redis(
             redis_url=self.redis_url,
             embedding=self.embedding,
             index_name="users_flat_last12",
-            # vector_schema=vector_schema,  # Sử dụng FLAT schema
+            vector_schema=vector_schema,
         )
         self.vector_store_last16 = Redis(
             redis_url=self.redis_url,
             embedding=self.embedding,
             index_name="users_flat_last16",
-            # vector_schema=vector_schema,  # Sử dụng FLAT schema
+            vector_schema=vector_schema,
         )
 
     def _select_vector_store(self, account_num_type):
@@ -67,9 +67,8 @@ class LangChainServiceV2:
 
         vector_store = self._select_vector_store(account_num_type)
         # chunk size
-        chunk_size = 100
         documents_chunks = [
-            documents[i : i + chunk_size] for i in range(0, len(documents), chunk_size)
+            documents[i : i + CHUNK_SIZE] for i in range(0, len(documents), CHUNK_SIZE)
         ]
 
         self.saved_count = 0
@@ -88,41 +87,6 @@ class LangChainServiceV2:
         self.saved_count += 1
         # save vector successfully
 
-        print(f"Vector chunk {self.saved_count} stored successfully!")
-
-    def save_vector(self, texts, metadatas, account_num_type):
-        print("start save vector from documents...")
-
-        vector_store = self._select_vector_store(account_num_type)
-        # chunk size
-        chunk_size = 100
-        texts_chunks = [
-            texts[i : i + chunk_size] for i in range(0, len(texts), chunk_size)
-        ]
-        metadata_chunks = [
-            metadatas[i : i + chunk_size] for i in range(0, len(metadatas), chunk_size)
-        ]
-
-        self.saved_count = 0
-        with ThreadPoolExecutor(max_workers=4) as executor:
-            futures = [
-                executor.submit(
-                    self._save_vector, texts_chunks[i], metadata_chunks[i], vector_store
-                )
-                for i in range(len(texts_chunks))
-            ]
-            for future in futures:
-                future.result()
-
-        print(f"Total chunks saved successfully: {self.saved_count}")
-
-    def _save_vector(self, texts, metadatas, vector_store):
-        vector_store.add_texts(
-            texts,
-            metadatas=metadatas,
-        )
-        self.saved_count += 1
-        # save vector successfully
         print(f"Vector chunk {self.saved_count} stored successfully!")
 
     def query_vector(self, query):
@@ -186,8 +150,20 @@ class LangChainServiceV2:
         except Exception as e:
             return None, None
 
-    #### search bổ sung trên tập kết quả: ####
+    ####  Performs a two-stage vector similarity search using the provided queries. ####
     def query_vector_with_scores_v3(self, query, sub_query, account_num_type):
+        """
+        First searches using the main query to get initial results, then performs a second
+        search on those results using the sub-query to refine the matches.
+
+        Args:
+            query (str): The main search query
+            sub_query (str): Secondary query to refine the search results
+            account_num_type (AccountNumType): Type of account number to search against
+
+        Returns:
+            tuple: (None, 0, 0) if error occurs, otherwise prints search results
+        """
         # simple
         try:
             print("query: ", query)
@@ -199,18 +175,27 @@ class LangChainServiceV2:
             documents = [result[0] for result in results]
             vector_store = FAISS.from_documents(documents, self.embedding)
 
-            # Query bổ sung để tìm kiếm trên kết quả trả ra
+            # query sub_query on results
             results = vector_store.similarity_search(sub_query, k=1)
 
-            # Hiển thị kết quả sau khi tìm kiếm bổ sung
+            # display results after query sub_query
             for result in results:
                 print(f"Content: {result.page_content}\nMetadata: {result.metadata}\n")
 
+            return results
+
         except Exception as e:
-            return None, 0, 0
+            return None
+    
+    #### Adjusts search result scores based on matching account numbers in sub_query.####
+    def _adjusted_result(self, results, sub_query):
+        """
+        Adjusts search result scores based on matching account numbers in sub_query.
 
-    def adjusted_result(self, results, sub_query):
-
+        Returns:
+            List of tuples containing (content_text, adjusted_score, base_score, id)
+            sorted by adjusted_score
+        """
         # reduce score if sub_query match
         adjusted_results = []
         account_nums = sub_query.split("or")
@@ -237,35 +222,3 @@ class LangChainServiceV2:
 
         return sorted_results
 
-    # def advanced_search(self, query):
-    # def advanced_search(self, query):
-    #     pass
-    #     # update the results  base on weight point
-    #     results = self.redis_store.similarity_search_with_score(json.dumps(query))
-
-    #     # Process results
-    #     for i, (doc, score) in enumerate(results):
-    #         print(f"Document {i+1}:")
-    #         print(f"Similarity Score: {score}")
-
-    #         # Accessing metadata
-    #         metadata = doc.metadata
-
-    #         # Extract specific parameters from metadata
-    #         author = metadata.get(
-    #             "FirstName", "Unknown"
-    #         )  # Default to "Unknown" if not found
-    #         date = metadata.get("LastName", "Unknown")
-    #         topic = metadata.get("City", "Unknown")
-
-    #         # Print extracted metadata
-    #         print(f"Author: {author}")
-    #         print(f"Date: {date}")
-    #         print(f"Topic: {topic}")
-    #         print("-" * 50)
-
-    #     results_with_scores = [
-    #         (result[0], self.calculate_priority_score(result, query))
-    #         for result in results
-    #     ]
-    #     return results_with_scores
