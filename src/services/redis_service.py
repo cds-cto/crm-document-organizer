@@ -13,7 +13,15 @@ class RedisService:
         config = configparser.ConfigParser()
         config.read(config_file_path)
         self.redis_url = config[config_name]["REDIS_URL"]
-        self.redis_client = redis.StrictRedis(host="localhost", port=6379, db=0)
+        # Parse redis URL to get host and port
+        redis_parts = self.redis_url.replace("redis://", "").split(":")
+        redis_host = redis_parts[0]
+        redis_port = int(redis_parts[1]) if len(redis_parts) > 1 else 6379
+        self.redis_client = redis.StrictRedis(host=redis_host, port=redis_port, db=0)
+        
+        # Print total number of keys in Redis
+        total_keys = len(self.redis_client.keys("*"))
+        print(f"Total number of Redis keys: {total_keys}")
 
     def delete_vector(self, account_num_type):
         index_name = self._select_index_name(account_num_type)

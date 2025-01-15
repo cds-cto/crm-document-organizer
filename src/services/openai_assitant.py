@@ -37,10 +37,15 @@ class OpenAiAssistantService:
 
         try:
             chunk_size = TOKEN_LIMIT_CHUNK_SIZE
-            chunks = [
-                content_file[i : i + chunk_size]
-                for i in range(0, len(content_file), chunk_size)
-            ]
+            chunks = []
+            for i in range(0, len(content_file), chunk_size):
+                chunk = content_file[i:i + chunk_size]
+                # If this is the last chunk and it's smaller than 3000 characters
+                if i + chunk_size >= len(content_file) and len(chunk) < 3000 and chunks:
+                    # Append to the previous chunk instead of creating a new one
+                    chunks[-1] = chunks[-1] + chunk
+                else:
+                    chunks.append(chunk)
 
             result_json = {}
             thread_id = self.openai_threads.create().id
@@ -232,7 +237,7 @@ Category Descriptions:
 - Category: Payment Confirmation
   - Document Identification: Source is Creditor.
     - Includes: Has payment date, Has payment amount.
-  - Keywords: Authorized, Confirmed, Thank you for, Payment.
+  - Keywords: Authorized, Confirmed, Thank you for, payment, Payment received, Payment date, Payment amount.
 
 - Category: Settlement Offer
   - Document Identification: Source is Creditor.

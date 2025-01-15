@@ -1,6 +1,6 @@
 
 *.pyc
-src/config/config.ini
+src/services/config.ini
 **/__pycache__/
 venv/
 output_excel/
@@ -9,7 +9,7 @@ src/ocr_files/*.png
 src/pdf_files/**/*.txt
 src/pdf_files/**/*.png
 src/pdf_files/**/*.pdf
-src/config.ini
+
 
 # Ignore entire poppler directory and its contents
 src/poppler/

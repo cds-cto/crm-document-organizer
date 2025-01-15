@@ -37,6 +37,15 @@ class UtilitiesService:
 
     # create excel file
     def create_excel_file(self, filename, data):
+        try:
+            self._create_excel_file(filename, data)
+        except Exception as e:
+            new_filename = (
+                filename.rsplit(".", 1)[0] + "_2." + filename.rsplit(".", 1)[1]
+            )
+            self._create_excel_file(new_filename, data)
+
+    def _create_excel_file(self, filename, data):
 
         df = pd.DataFrame(data)
 

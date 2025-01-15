@@ -134,7 +134,7 @@ class LangChainServiceV2:
                 query, k=NUMBER_OF_DOCUMENTS_TO_RETURN
             )
 
-            sorted_results = self.adjusted_result(results, sub_query)
+            sorted_results = self._adjusted_result(results, sub_query)
             # return first result
             if sorted_results:
                 content, score, base_score, document_id = sorted_results[0]

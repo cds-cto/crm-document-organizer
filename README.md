@@ -2,6 +2,25 @@
 
 A powerful OCR (Optical Character Recognition) service for extracting text from images and PDF files.
 
+## Project Structure
+
+ocr-service/
+├── src/
+│ ├── ocr_service.py # Main OCR service implementation
+│ ├── services/
+│       ├── config.ini      # Configuration settings
+│ ├── common/
+│ ├── knowledge/
+│ ├── utils/ # Utility functions and helpers
+│ ├── main.py # Main entry point
+│ ├── ocr_files/ # OCR files
+│ ├── pdf_files/ # PDF files
+│ └── ...
+├── Dockerfile
+├── docker-compose.yml
+├── requirements.txt # Python dependencies
+└── README.md # Project documentation
+
 ## Prerequisites
 
 ### Required Software
