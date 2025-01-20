@@ -17,7 +17,7 @@ TOKEN_LIMIT_CHUNK_SIZE = 20000
 
 ######################## CRM CONFIG ########################
 CHUNK_SIZE = 100
-
+FUZZY_SEARCH_TOLERANCE = 1
 
 ######################## CONSTANTS ID ########################
 PRIMARY_ADDRESS_ID = "5ba9cf57-608f-424d-9385-f543a2708baf"
