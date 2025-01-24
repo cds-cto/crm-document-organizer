@@ -96,8 +96,11 @@ class MainService:
             "STIP",  # 11
             "Summon Notice",  # 12
             "WPOA",  # 13
+            "SIF2",  # 14
+            "STIP2",  # 15
+            "Payment Confirmation2",  # 16
         ]
-        CATEGORY_ORIGINAL = CATEGORYS[0]
+        CATEGORY_ORIGINAL = CATEGORYS[16]
         # CATEGORY_ORIGINAL = "test"
         current_folder = os.path.dirname(os.path.abspath(__file__))
         pdf_files_path = os.path.join(current_folder, PDF_FOLDER, CATEGORY_ORIGINAL)
