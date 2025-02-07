@@ -1,4 +1,5 @@
 from common.constants import FUZZY_SEARCH_TOLERANCE, PRIMARY_ADDRESS_ID
+from common.enums import UnMappedDocumentStatus
 from common.error_code import ErrorCode
 from services.sqlconnect import SqlConnect
 from langchain_core.documents import Document
@@ -320,6 +321,50 @@ class CrmService:
             return sum(1 for a, b in zip(str(num1), str(num2)) if a != b)
         except:
             return float("inf")  # Return infinity if comparison fails
+
+    def get_unmapped_documents(self):
+        SQL = f"""
+            select DocumentId, Name, Title, Status, Category, Description, ProfileId, LiabilityId, Active, CreatedBy, CreatedAt, ModifiedBy, ModifiedAt from UnMappedDocuments where Status = '{UnMappedDocumentStatus.UPLOADED.value}'
+        """
+        print(SQL)
+        fetches = self.sql.fetchall(SQL, [])
+        return fetches
+
+    def update_unmapped_documents(self, document_info):
+        """Update unmapped document status, category, profile and liability"""
+        try:
+            document_id = document_info["DocumentId"]
+            status = document_info["Status"]
+            category = document_info["Category"]
+            profile_id = document_info["ProfileId"]
+            liability_id = document_info["LiabilityId"]
+            updated_by = document_info["UpdatedBy"]
+            updated_at = document_info["UpdatedAt"]
+
+            SQL = """
+                UPDATE UnMappedDocuments 
+                SET Status = '{0}',
+                    Category = '{1}',
+                    ProfileId = '{2}',
+                    LiabilityId = '{3}',
+                    ModifiedBy = '{4}',
+                    ModifiedAt = '{5}'
+                WHERE DocumentId = '{6}'
+            """.format(
+                status,
+                category,
+                profile_id,
+                liability_id,
+                updated_by,
+                updated_at,
+                document_id,
+            )
+
+            self.sql.commit(SQL, [])
+            return True
+
+        except Exception as e:
+            print(f"Error updating unmapped document: {str(e)}")
 
     def close(self):
         self.sql.close()

@@ -126,13 +126,15 @@ class OCRService:
             return None
         finally:
             # todo: comment for testing
-            # if self.DELETE_FILE:
-            #     if os.path.exists(output_file):
-            #         os.remove(output_file)
-            #     if os.path.exists(pdf_file_path):
-            #         os.remove(pdf_file_path)
-            #     # delete png file in ocr folder
-            #     for file in os.listdir(ocr_path):
-            #         if file.startswith(file_name) and file.endswith(".png"):
-            #             os.remove(os.path.join(ocr_path, file))
+            if self.DELETE_FILE:
+                if os.path.exists(output_file):
+                    os.remove(output_file)
+                if os.path.exists(pdf_file_path):
+                    os.remove(pdf_file_path)
+                # delete png file in ocr folder
+                for file in os.listdir(ocr_path):
+                    if file.startswith(filename_without_extension) and file.endswith(
+                        ".png"
+                    ):
+                        os.remove(os.path.join(ocr_path, file))
             print("DONE")
