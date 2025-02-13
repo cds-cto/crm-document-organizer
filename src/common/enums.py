@@ -7,8 +7,7 @@ class AccountNumType(Enum):
     LAST16 = "last16"
 
 class UnMappedDocumentStatus(Enum):
-    UPLOADED = 0
-    PROCESSING = 1
-    PENDING = 2
-    TRANSFERRED = 3
-    UNKNOWN = 4
+    PENDING = 0
+    UPLOADED = 1
+    TRANSFERRED = 2
+    UNKNOWN = 3

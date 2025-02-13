@@ -335,18 +335,18 @@ class CrmService:
         try:
             document_id = document_info["DocumentId"]
             status = document_info["Status"]
-            category = document_info["Category"]
-            profile_id = document_info["ProfileId"]
-            liability_id = document_info["LiabilityId"]
+            category = "NULL" if document_info["Category"] is None else f"'{document_info['Category']}'"
+            profile_id = "NULL" if document_info["ProfileId"] is None else f"'{document_info['ProfileId']}'"
+            liability_id = "NULL" if document_info["LiabilityId"] is None else f"'{document_info['LiabilityId']}'"
             updated_by = document_info["UpdatedBy"]
             updated_at = document_info["UpdatedAt"]
 
             SQL = """
                 UPDATE UnMappedDocuments 
                 SET Status = '{0}',
-                    Category = '{1}',
-                    ProfileId = '{2}',
-                    LiabilityId = '{3}',
+                    Category = {1},
+                    ProfileId = {2},
+                    LiabilityId = {3},
                     ModifiedBy = '{4}',
                     ModifiedAt = '{5}'
                 WHERE DocumentId = '{6}'
@@ -365,6 +365,13 @@ class CrmService:
 
         except Exception as e:
             print(f"Error updating unmapped document: {str(e)}")
+
+    def is_liability_belong_to_profile(self, liability_id, profile_id):
+        SQL = f"""
+            select count(1) from Liabilities where LiabilityId = '{liability_id}' and ProfileId = '{profile_id}' and Enrolled = 1
+        """
+        fetches = self.sql.fetchall(SQL, [])
+        return bool(fetches[0][0])
 
     def close(self):
         self.sql.close()

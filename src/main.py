@@ -6,7 +6,6 @@ import debugpy
 from common.constants import (
     CATEGORY_DICTIONARY,
     CONFIG_FILE,
-    LIABILITY_ID_DEFAULT,
     OCR_FOLDER,
     PDF_FOLDER,
     USERNAME_UPDATE_STATUS,
@@ -236,7 +235,6 @@ class MainService:
                 document_id = str(unmapped_document[0])
                 file_name = str(unmapped_document[1])
                 self.s3_service.download_file_by_name_s3([file_name])
-                all_file_name.append(file_name)
 
                 current_folder = os.path.dirname(os.path.abspath(__file__))
 
@@ -245,6 +243,7 @@ class MainService:
 
                 if file_name.endswith(".pdf"):
                     pdf_file_path = os.path.join(pdf_files_path, file_name)
+                    all_file_name.append(pdf_file_path)
                     filename_without_extension = os.path.splitext(
                         os.path.basename(file_name)
                     )[0]
@@ -330,21 +329,26 @@ class MainService:
                     # endregion
 
                     # region update unmapped document
+                    profile_id = None
+                    liability_id = None
+
                     if profiles:
                         profile_id = profiles["ProfileId"]
                         liability_id = profiles["LiabilityId"]
                     elif user_data:
-                        profile_id = user_data["profile_id"]
+                        profile_id = user_data["profile_id"] 
                         liability_id = user_data["liability_id"]
-                    else:
-                        profile_id = None
 
-                        liability_id = LIABILITY_ID_DEFAULT
+                    if profile_id and liability_id:
+                        if not self.crm_service.is_liability_belong_to_profile(
+                            liability_id, profile_id
+                        ):
+                            liability_id = None
 
                     self.crm_service.update_unmapped_documents(
                         {
                             "DocumentId": document_id,
-                            "Category": CATEGORY_DICTIONARY[gpt_category],
+                            "Category": None if gpt_category in [None, "null"] else CATEGORY_DICTIONARY[gpt_category],
                             "ProfileId": profile_id,
                             "LiabilityId": liability_id,
                             "Status": UnMappedDocumentStatus.PENDING.value,
@@ -362,7 +366,8 @@ class MainService:
             self.crm_service.close()
             # remove all file in unmapped_documents
             for file_name in all_file_name:
-                os.remove(os.path.join(current_folder, PDF_FOLDER, file_name))
+                if os.path.exists(file_name):
+                    os.remove(file_name)
 
 
 if __name__ == "__main__":
