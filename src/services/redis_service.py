@@ -1,8 +1,7 @@
 import configparser
 import os
 import redis
-
-from common.constants import REDIS_INDEX_NAME
+from langchain_community.vectorstores.redis import Redis
 from common.enums import AccountNumType
 
 
@@ -18,14 +17,15 @@ class RedisService:
         redis_host = redis_parts[0]
         redis_port = int(redis_parts[1]) if len(redis_parts) > 1 else 6379
         self.redis_client = redis.StrictRedis(host=redis_host, port=redis_port, db=0)
-        
+
         # Print total number of keys in Redis
         total_keys = len(self.redis_client.keys("*"))
         print(f"Total number of Redis keys: {total_keys}")
 
-    def delete_vector(self, account_num_type):
-        index_name = self._select_index_name(account_num_type)
-        self.redis_client.delete(index_name)
+    def delete_all_data(self):
+        """Delete all keys and data from Redis"""
+        self.redis_client.flushall()
+        print("All data has been deleted from Redis")
 
     def get_vector_by_id(self, key_id: str) -> dict:
         retrieved_data = self.redis_client.hgetall(key_id)
