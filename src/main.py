@@ -28,13 +28,20 @@ from services.s3_service import S3Service
 class MainService:
     def __init__(self):
         # self.langchain_service = LangChainService(CONFIG_FILE, "REDIS")
-        self.langchain_service_v2 = LangChainServiceV2(CONFIG_FILE, "REDIS")
-        self.ocr_service = OCRService(CONFIG_FILE, "SYSTEM_CONFIG")
-        self.openai_assistant_service = OpenAiAssistantService(CONFIG_FILE, "OPENAI")
         self.crm_service = CrmService(CONFIG_FILE, "SQL_NEW")
+        print("crm_service init success")
+        self.langchain_service_v2 = LangChainServiceV2(CONFIG_FILE, "REDIS")
+        print("langchain_service_v2 init success")
+        self.ocr_service = OCRService(CONFIG_FILE, "SYSTEM_CONFIG")
+        print("ocr_service init success")
+        self.openai_assistant_service = OpenAiAssistantService(CONFIG_FILE, "OPENAI")
+        print("openai_assistant_service init success")
         self.redis_service = RedisService(CONFIG_FILE, "REDIS")
+        print("redis_service init success")
         self.utilities_service = UtilitiesService()
+        print("utilities_service init success")
         self.s3_service = S3Service(CONFIG_FILE, "AWS")
+        print("s3_service init success")
 
     def save_data_to_redis_from_documents(self):
         # get all documents from crm

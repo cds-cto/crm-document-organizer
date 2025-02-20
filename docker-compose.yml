@@ -1,32 +1,32 @@
 version: "3.8"
 
 services:
-  redis:
-    image: redis/redis-stack-server:latest
-    restart: always
-    ports:
-      - "6379:6379"
-    volumes:
-      - ./redis-data:/root/redis
-      # - /path/to/local/redis.conf:/usr/local/etc/redis/redis.conf
-    environment:
-      - ALLOW_EMPTY_PASSWORD=yes
-      - REDIS_DISABLE_COMMANDS=FLUSHDB,FLUSHALL
-    networks:
-      - app-network
+  # redisV2:
+  #   image: redis/redis-stack-server:latest
+  #   restart: always
+  #   ports:
+  #     - "6379:6379"
+  #   volumes:
+  #     - ./redis-data:/root/redis
+  #     # - /path/to/local/redis.conf:/usr/local/etc/redis/redis.conf
+  #   environment:
+  #     - ALLOW_EMPTY_PASSWORD=yes
+  #     - REDIS_DISABLE_COMMANDS=FLUSHDB,FLUSHALL
+  #   networks:
+  #     - app-network
 
-  redis-commander:
-    container_name: redis-commander
-    hostname: redis-commander
-    image: ghcr.io/joeferner/redis-commander:latest
-    restart: always
-    environment:
-    - REDIS_HOSTS=local:redis:6379
-    ports:
-    - "8081:8081"
-    user: redis
-    networks:
-      - app-network
+  # redis-commander:
+  #   container_name: redis-commander
+  #   hostname: redis-commander
+  #   image: ghcr.io/joeferner/redis-commander:latest
+  #   restart: always
+  #   environment:
+  #   - REDIS_HOSTS=local:redis:6379
+  #   ports:
+  #   - "8081:8081"
+  #   user: redis
+  #   networks:
+  #     - app-network
 
   app:
     build: .
@@ -36,20 +36,22 @@ services:
       - 5679:5679
     volumes:
       - .:/code
-    networks:
-      - app-network
-    depends_on:
-      - redis
+    # networks:
+    #   - app-network
+    # depends_on:
+    #   - redisV2
 
-  redis-importer:
-    build: .
-    container_name: redis-importer
-    command: python ./src/redis_importer.py
-    networks:
-      - app-network
-    depends_on:
-      - redis
+#   redis-importer:
+#     build: .
+#     container_name: redis-importer
+#     command: python ./src/redis_importer.py
+#     ports:
+#       - 5669:5669
+#     networks:
+#       - app-network
+#     depends_on:
+#       - redisV2
 
-networks:
-  app-network:
-    driver: bridge
+# networks:
+#   app-network:
+#     driver: bridge

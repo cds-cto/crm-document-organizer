@@ -22,7 +22,7 @@ class LangChainServiceV2:
         config = configparser.ConfigParser()
         config.read(config_file_path)
         self.redis_url = config[config_name]["REDIS_URL"]
-        self.index_name = "users_flat_cosine"
+        # self.index_name = "users_flat_cosine"
 
         model_name = "sentence-transformers/all-mpnet-base-v2"
         encode_kwargs = {"normalize_embeddings": True}
