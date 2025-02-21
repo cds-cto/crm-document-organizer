@@ -14,8 +14,8 @@ from common.constants import (
 # from crm_api_service import CrmAPIService
 from common.enums import AccountNumType, UnMappedDocumentStatus
 from services.crm_service import CrmService
-from services.langchain_service import LangChainService
-from services.langchain_service_v2 import LangChainServiceV2
+# from services.langchain_service import LangChainService
+# from services.langchain_service_v2 import LangChainServiceV2
 from services.ocr_service import OCRService
 from services.openai_assitant import OpenAiAssistantService
 from services.redis_service import RedisService
@@ -30,8 +30,8 @@ class MainService:
         # self.langchain_service = LangChainService(CONFIG_FILE, "REDIS")
         self.crm_service = CrmService(CONFIG_FILE, "SQL_NEW")
         print("crm_service init success")
-        self.langchain_service_v2 = LangChainServiceV2(CONFIG_FILE, "REDIS")
-        print("langchain_service_v2 init success")
+        # self.langchain_service_v2 = LangChainServiceV2(CONFIG_FILE, "REDIS")
+        # print("langchain_service_v2 init success")
         self.ocr_service = OCRService(CONFIG_FILE, "SYSTEM_CONFIG")
         print("ocr_service init success")
         self.openai_assistant_service = OpenAiAssistantService(CONFIG_FILE, "OPENAI")
@@ -49,13 +49,13 @@ class MainService:
             self.crm_service.get_profiles_for_vector_store()
         )
         # save to redis
-        self.langchain_service_v2.save_documents(documents_last4, AccountNumType.LAST4)
-        self.langchain_service_v2.save_documents(
-            documents_last12, AccountNumType.LAST12
-        )
-        self.langchain_service_v2.save_documents(
-            documents_last16, AccountNumType.LAST16
-        )
+        # self.langchain_service_v2.save_documents(documents_last4, AccountNumType.LAST4)
+        # self.langchain_service_v2.save_documents(
+        #     documents_last12, AccountNumType.LAST12
+        # )
+        # self.langchain_service_v2.save_documents(
+        #     documents_last16, AccountNumType.LAST16
+        # )
 
     def update_assistant(self):
         self.openai_assistant_service.update_assistant_v2()
@@ -165,33 +165,37 @@ class MainService:
                 profiles = self.crm_service.find_profiles_from_db(profile_info)
 
                 # region call langchain service to search
-                if (
-                    profile_info["AccountNumber"] != "null"
-                    and profile_info["AccountNumber"] != None
-                ):
-                    account_num_type = self.utilities_service.get_account_num_type(
-                        profile_info["AccountNumber"]
-                    )
+                # TODO: Testing 2/21/25
+                user_data = None
+                base_percentage = None
+                
+                # if (
+                #     profile_info["AccountNumber"] != "null"
+                #     and profile_info["AccountNumber"] != None
+                # ):
+                #     account_num_type = self.utilities_service.get_account_num_type(
+                #         profile_info["AccountNumber"]
+                #     )
 
-                    query, sub_query = self.utilities_service.render_query_for_search(
-                        profile_info, account_num_type
-                    )
+                #     query, sub_query = self.utilities_service.render_query_for_search(
+                #         profile_info, account_num_type
+                #     )
 
-                    base_percentage, document_id = (
-                        self.langchain_service_v2.query_vector_with_scores_v2(
-                            query, sub_query, account_num_type
-                        )
-                    )
-                    if document_id != None:
-                        user_data = self.redis_service.get_vector_by_id(
-                            document_id.get("id")
-                        )
-                    else:
-                        user_data = None
-                        base_percentage = None
-                else:
-                    user_data = None
-                    base_percentage = None
+                #     base_percentage, document_id = (
+                #         self.langchain_service_v2.query_vector_with_scores_v2(
+                #             query, sub_query, account_num_type
+                #         )
+                #     )
+                #     if document_id != None:
+                #         user_data = self.redis_service.get_vector_by_id(
+                #             document_id.get("id")
+                #         )
+                #     else:
+                #         user_data = None
+                #         base_percentage = None
+                # else:
+                #     user_data = None
+                #     base_percentage = None
                 # endregion
 
                 # region check WPOA and POA
@@ -303,36 +307,38 @@ class MainService:
                     profiles = self.crm_service.find_profiles_from_db(profile_info)
 
                     # region call langchain service to search
-                    if (
-                        profile_info["AccountNumber"] != "null"
-                        and profile_info["AccountNumber"] != None
-                    ):
-                        account_num_type = self.utilities_service.get_account_num_type(
-                            profile_info["AccountNumber"]
-                        )
+                    # TODO: Testing 2/21/25
+                    user_data = None
+                    # if (
+                    #     profile_info["AccountNumber"] != "null"
+                    #     and profile_info["AccountNumber"] != None
+                    # ):
+                    #     account_num_type = self.utilities_service.get_account_num_type(
+                    #         profile_info["AccountNumber"]
+                    #     )
 
-                        query, sub_query = (
-                            self.utilities_service.render_query_for_search(
-                                profile_info, account_num_type
-                            )
-                        )
+                    #     query, sub_query = (
+                    #         self.utilities_service.render_query_for_search(
+                    #             profile_info, account_num_type
+                    #         )
+                    #     )
 
-                        base_percentage, redis_document_id = (
-                            self.langchain_service_v2.query_vector_with_scores_v2(
-                                query, sub_query, account_num_type
-                            )
-                        )
+                    #     base_percentage, redis_document_id = (
+                    #         self.langchain_service_v2.query_vector_with_scores_v2(
+                    #             query, sub_query, account_num_type
+                    #         )
+                    #     )
 
-                        if redis_document_id != None:
-                            user_data = self.redis_service.get_vector_by_id(
-                                redis_document_id.get("id")
-                            )
-                        else:
-                            user_data = None
-                            base_percentage = None
-                    else:
-                        user_data = None
-                        base_percentage = None
+                    #     if redis_document_id != None:
+                    #         user_data = self.redis_service.get_vector_by_id(
+                    #             redis_document_id.get("id")
+                    #         )
+                    #     else:
+                    #         user_data = None
+                    #         base_percentage = None
+                    # else:
+                    #     user_data = None
+                    #     base_percentage = None
                     # endregion
 
                     # region update unmapped document
@@ -378,8 +384,8 @@ class MainService:
 
 
 if __name__ == "__main__":
-    debugpy.listen(("0.0.0.0", 5679))
-    debugpy.wait_for_client()
+    # debugpy.listen(("0.0.0.0", 5679))
+    # debugpy.wait_for_client()
     print("start success")
     main_service = MainService()
 
