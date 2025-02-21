@@ -54,3 +54,9 @@ COPY ./src ./src
 
 
 CMD ["python", "./src/main.py"]
+
+
+# buid image    : docker build -t crm-document-organizer .
+# name of image : us-west2-docker.pkg.dev/polling-apps/core/crm-document-organizer
+# tag image     : docker tag crm-document-organizer us-west2-docker.pkg.dev/polling-apps/core/crm-document-organizer:lastest
+# push image    : docker push us-west2-docker.pkg.dev/polling-apps/core/crm-document-organizer:lastest

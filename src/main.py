@@ -2,7 +2,7 @@
 import datetime
 import json
 import os
-import debugpy
+import debugpy, requests
 from common.constants import (
     CATEGORY_DICTIONARY,
     CONFIG_FILE,
@@ -381,11 +381,19 @@ class MainService:
             for file_name in all_file_name:
                 if os.path.exists(file_name):
                     os.remove(file_name)
+# ************************
+# VPC outbound IP check
+# ************************
+def get_external_ping():
+    res = requests.get("https://curlmyip.org/")
+    print(res.text)
+
 
 
 if __name__ == "__main__":
     # debugpy.listen(("0.0.0.0", 5679))
     # debugpy.wait_for_client()
+    get_external_ping()
     print("start success")
     main_service = MainService()
 
