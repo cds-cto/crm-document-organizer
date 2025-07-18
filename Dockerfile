@@ -1,56 +1,36 @@
-# Pull official base image and fixing to AMD Architecture
-FROM --platform=linux/amd64 python:3.12.7
+FROM --platform=linux/amd64 python:3.8.6
+RUN pip install --upgrade pip
 
 WORKDIR /code
-
-
-# Prevents Python from writing .pyc files
-ENV PYTHONDONTWRITEBYTECODE 1
-
-# Causes all output to stdout to be flushed immediately
-ENV PYTHONUNBUFFERED 1
-
-# Mark the image as trusted
-ENV DOCKER_CONTENT_TRUST 1
-
-ENV APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=DontWarn
-
-# Updates packages list for the image
-RUN apt-get update
-
-# Install system dependencies including Tesseract and Poppler
-RUN apt-get update && apt-get install -y \
-    tesseract-ocr \
-    poppler-utils \
-    && rm -rf /var/lib/apt/lists/*
-
-# Retrieves packages from Microsoft
-RUN curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add -
-RUN curl https://packages.microsoft.com/config/debian/10/prod.list > /etc/apt/sources.list.d/mssql-release.list
-RUN apt-get update
-
-# Installs SQL drivers and tools
-RUN ACCEPT_EULA=Y apt-get install -y msodbcsql17 unixodbc-dev
-
-# Installs MS SQL Tools
-RUN ACCEPT_EULA=Y apt-get install -y mssql-tools
-
-# Adds paths to the $PATH environment variable within the .bash_profile and .bashrc files
-RUN echo 'export PATH="$PATH:/opt/mssql-tools/bin"' >> ~/.bash_profile
-RUN echo 'export PATH="$PATH:/opt/mssql-tools/bin"' >> ~/.bashrc
-
-# Updates packages for the image
-RUN apt-get update
-
-# Enables authentication of users and servers on a network
-RUN apt-get install libgssapi-krb5-2 -y
-
 
 COPY ./requirements.txt ./
 RUN pip install --no-cache-dir -r  requirements.txt
 
 COPY ./src ./src
 
+EXPOSE 80
+
+# CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "80", "--reload"] # disabling relaod
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "80"]
+
+# docker build -t  ctocds/ctsapi2:0.1 .
+# docker container run -p 7000:80 58f0b10b4183416545fb4d6c2b889e5eaad9795260f0f55a2e678a29329c8894
+# docker exec -it <container_id> sh
 
 
-CMD ["python", "./src/main.py"]
+# volumn docker run --name  cts-container -p 80:80 -d -v $(pwd):/code ctsapi2
+
+
+
+#******** s3 deploy
+#* VIEW Command here  https://us-west-1.console.aws.amazon.com/ecr/private-registry/repositories?region=us-west-1
+
+# introduction on how to set up ALB and Targetgroup and policy http://cds-1502529271.us-west-1.elb.amazonaws.com/
+
+#******** google cloud
+# buid image    : docker build -t cdszone .
+# name of image : us-west2-docker.pkg.dev/polling-apps/core/cdszone
+# tag image     : docker tag cdszone us-west2-docker.pkg.dev/polling-apps/core/cdszone:lastest
+# push image    : docker push us-west2-docker.pkg.dev/polling-apps/core/cdszone:lastest
+
+

@@ -9,7 +9,8 @@ src/ocr_files/*.png
 src/pdf_files/**/*.txt
 src/pdf_files/**/*.png
 src/pdf_files/**/*.pdf
-
+src/config/config.ini
+src/config/*.json
 
 # Ignore entire poppler directory and its contents
 src/poppler/

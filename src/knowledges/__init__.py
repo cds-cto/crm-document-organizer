@@ -1,0 +1,1 @@
+from src.knowledges.prompt2 import CATEGORIZING_PROMPT
