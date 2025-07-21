@@ -1,1 +1,1 @@
-from src.knowledges.prompt2 import CATEGORIZING_PROMPT
+from src.knowledges.prompt import CATEGORIZING_PROMPT

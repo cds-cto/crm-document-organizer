@@ -9,7 +9,7 @@ from src.services.gpt_services import GPTServices
 from src.services.google_services import GoogleOCRService
 from src.services.logging_services import setup_logger
 from src.services.config_loader_services import config_loader
-from src.knowledges import prompt2
+from src.knowledges import CATEGORIZING_PROMPT as prompt
 
 class CrmDocumentOrganizerService:
     def __init__(
@@ -45,7 +45,7 @@ class CrmDocumentOrganizerService:
             result = self._gpt.gpt_services(
                 text=ocr_text,
                 model="gpt-4.1",
-                prompt=prompt2.CATEGORIZING_PROMPT,
+                prompt=prompt,
                 temperature=0.1,
             )
             return result
@@ -56,7 +56,6 @@ class CrmDocumentOrganizerService:
     def categorize_document(self, file_bytes: bytes, file_name: str) -> Dict[str, Any]:
         self.logger.info("Categorizing document: %s", file_name)
         ocr_text = self.run_ocr(file_bytes, file_name)
-        self.logger.info("Text extracted from document: %s", ocr_text[:100] + "...")  # Log first 100 chars
         category_info = self.classify_category(ocr_text)
         self.logger.info("Document categorized successfully.")
         return category_info

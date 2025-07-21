@@ -7,17 +7,9 @@ You are a document analysis expert. I will provide you with various types of doc
 Categories and their characteristics are as follows:
 
 Category Descriptions:
-- Category: WPOA
-  - Document Identification: Source is Citizen Debt Services; requires a wet signature from the client.
-  - Keywords: Authorization for banking institution, Authorization to communicate and negotiate.
-
 - Category: POA
-  - Document Identification: Source is Citizen Debt Services; requires an e-signature from the client.
+  - Document Identification: Source is Citizen Debt Services; requires an signature from the client.
   - Keywords: Authorization for banking institution, Authorization to communicate and negotiate.
-
-- Category: NPOA
-  - Document Identification: Source is Citizen Debt Services; requires a wet signature from the client and notarization with wet signature from the State and County office, including date and expiration date.
-  - Keywords: Authorization for banking institution, Authorization to communicate and negotiate, A notary public, Subscribed and sworn to.
 
 - Category: Bank Statements
   - Document Identification: Source is Creditor.
@@ -26,8 +18,8 @@ Category Descriptions:
 
 - Category: Collection Notice
   - Document Identification: Source is Debt Collector.
-    - Includes: Owner/original creditor information, Original creditor account number, Reference account number, Debt Collector information, Total amount of debt.
-  - Keywords: Debt collector, Reference, Debt collection attempt, Our records indicate.
+    - Includes: Owner/original creditor information, Original creditor account number, Reference account number, Debt Collector information, Total amount of debt, the phrase:"How can you dispute the debt?", "What else can you do?".
+  - Keywords: Debt collector, Reference, Debt collection attempt, "Our records indicate", "How can you dispute the debt?", "What else can you do?".
 
 - Category: Legal Notice
   - Document Identification: Source is Court or Lawfirm.
@@ -61,8 +53,8 @@ Category Descriptions:
 
 - Category: Payment Confirmation
   - Document Identification: Source is Creditor.
-    - Includes: Has payment date, Has payment amount.
-  - Keywords: Authorized, Confirmed, Thank you for, Payment.
+    - Includes: Has payment date, Has payment amount or the payment reminder.
+  - Keywords: Authorized, Confirmed, Thank you for, Payment transaction amount, Transaction date, Will be deposited, Payment reminder.
 
 - Category: Settlement Offer
   - Document Identification: Source is Creditor.
