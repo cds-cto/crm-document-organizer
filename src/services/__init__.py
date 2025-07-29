@@ -2,4 +2,6 @@ from src.services.google_services import GoogleOCRService
 from src.services.gpt_services import GPTServices
 from src.services.logging_services import setup_logger
 from src.services.config_loader_services import config_loader
-from src.services.crm_document_organizer_services import CrmDocumentOrganizerService, categorizing_document
+from src.services.document_categorizing_services import DocumentCategorizingService, categorizing_document
+from src.services.crm_document_organizer_services import CrmDocumentOrganizerService, organizing_document
+from src.services.sql_find_services import MSSQLConnect, MSSQLProfileFinder

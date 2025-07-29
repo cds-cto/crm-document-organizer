@@ -19,3 +19,10 @@ gcp_bucket_name  = config["GCP"]["bucket_name"]
 
 # --- OpenAI -----------------------------------------------------------
 openai_api_key = config["OPENAI"]["api_key"]
+
+# --- SQL --------------------------------------------------------------
+sql_server = config["SQL"]["SERVER"]
+sql_database = config["SQL"]["DATABASE"]
+sql_uid = config["SQL"]["UID"]
+sql_pwd = config["SQL"]["PWD"]
+sql_port = config["SQL"].get("PORT", "5432")

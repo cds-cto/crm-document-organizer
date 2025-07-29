@@ -13,8 +13,8 @@ import secrets
 # nest_asyncio.apply()
 
 # Debug
-# import debugpy
-# debugpy.listen(("0.0.0.0", 5679))
+import debugpy
+debugpy.listen(("0.0.0.0", 5679))
 
 
 # ********** Initialize FastAPI

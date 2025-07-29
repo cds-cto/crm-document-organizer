@@ -1,14 +1,15 @@
 services:
   app:
     build: .
-    container_name: python-server
+    container_name: document_organizer
     command: uvicorn src.main:app --host 0.0.0.0 --port 80 --reload
     ports:
       - 80:80
       - 5679:5679
     volumes:
       - .:/code
-
+    dns:
+      - 8.8.8.8
 
 
 # detach mode + rebuild : docker compose up --build -d 
