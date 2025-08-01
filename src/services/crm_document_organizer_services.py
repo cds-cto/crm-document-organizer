@@ -55,59 +55,99 @@ class CrmDocumentOrganizerService:
         self.logger.info("Document categorized successfully.")
         return category_info
     
-    def info_grab(self, file_bytes: bytes, file_name: str, file_type: str) -> Dict[str, Any]:
-        if file_type == "POA":
-            info_grab = self._gpt.gpt_services(
-                text=file_bytes,
-                model="gpt-4.1",
-                prompt=prompt.INFO_GRAB_POA_PROMPT,
-                temperature=0.1,
-            )
-        else:
-            info_grab = self._gpt.gpt_services(
-                text=file_bytes,
-                model="gpt-4.1",
-                prompt=prompt.INFO_GRAB_NOT_POA_PROMPT,
-                temperature=0.1,
-            )
+    def info_grab(self, file_bytes: bytes, file_name: str) -> Dict[str, Any]:
+        info_grab = self._gpt.gpt_services(
+            text=file_bytes,
+            model="gpt-4.1",
+            prompt=prompt.INFO_GRAB_PROMPT,
+            temperature=0.1,
+        )
         return info_grab
     
 
-    def Test(self) -> Dict[str, Any]:
-    # 🔧 Replace these with your test/staging credentials
+    def FindProfileandLiability(
+            self, 
+            lastname: str, 
+            firstname: str, 
+            reference_number: str, 
+            file_number: str, 
+            last4_account_number: str, 
+            full_account_number: str, 
+            first_12_account_number: str, 
+            first_8_account_number: str, 
+            email: str, 
+            last4_ssn: str
+        ) -> Dict[str, Any]:
         self.logger.info("Initializing DB connection...")
-         # Initialize the database connection and finder
-         # Use the credentials from config.ini
         db = MSSQLConnect()
         finder = MSSQLProfileFinder(db)
 
         try:
             self.logger.info("Testing Profile Finder with sample input...\n")
             test_data = {
-                "Creditor": "CITIBANK, N.A.",
-                "AccountNumber": "3539",
-                "LastName": "DOAN"
+                "LastName": lastname,
+                "FirstName": firstname,
+                "ReferenceNumber": reference_number,
+                "FileNumber": file_number,                
+                "Last4AccountNumber": last4_account_number,    
+                "FullAccountNumber": full_account_number,
+                "First12AccountNumber": first_12_account_number,
+                "First8AccountNumber": first_8_account_number,
+                "Email": email,
+                "Last4SSN": last4_ssn,
             }
             result = finder.find_best_match(test_data)
             return result
 
         except Exception as e:
-            return {"❌ Error": str(e)}
+            return {"Error": str(e)}
         finally:
             finder.close()
             self.logger.info("Connection closed.")
+
 
     def document_organizer(self, file_bytes: bytes, file_name: str) -> Dict[str, Any]:
         self.logger.info("Organizing document: %s", file_name)
         ocr_text = self.run_ocr(file_bytes, file_name)
         category_info = self.categorizing_document(file_bytes, file_name)
-        info_grab = self.info_grab(ocr_text, file_name, category_info.get("Category", ""))
-        test = self.Test()
-        
+        info_grab = self.info_grab(ocr_text, file_name)
+        lastname = info_grab.get("LastName", "")
+        firstname = info_grab.get("FirstName", "")
+        reference_number = info_grab.get("ReferenceNumber", "")
+        file_number = info_grab.get("FileNumber", "")
+        last4_account_number = info_grab.get("Last4AccountNumber", "")
+        full_account_number = info_grab.get("FullAccountNumber", "")
+        first12_account_number = info_grab.get("First12AccountNumber", "")
+        first8_account_number = info_grab.get("First8AccountNumber", "")
+        email = info_grab.get("Email", "")
+        last4_ssn = info_grab.get("Last4SSN", "")
+        account = self.FindProfileandLiability(
+            lastname, 
+            firstname, 
+            reference_number, 
+            file_number, 
+            last4_account_number, 
+            full_account_number, 
+            first12_account_number, 
+            first8_account_number, 
+            email, 
+            last4_ssn)
+        info = {
+            "LastName": lastname,
+            "FirstName": firstname,
+            "ReferenceNumber": reference_number,
+            "FileNumber": file_number,
+            "Last4AccountNumber": last4_account_number,
+            "FullAccountNumber": full_account_number,
+            "First12AccountNumber": first12_account_number,
+            "First8AccountNumber": first8_account_number,
+            "Email": email,
+            "Last4SSN": last4_ssn
+        }
         result = {
             "category_info": category_info,
-            "info_grab": info_grab,
-            "test": test
+            "info_grab": info,
+            "account": account
         }
         
         self.logger.info("Document organized successfully.")

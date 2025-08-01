@@ -155,37 +155,46 @@ Return a JSON object as follows:
   "Reason": "<reason_for_why_that_category_was_chosen_and_why_others_were_not>"
 }
 """
+INFO_GRAB_PROMPT = """
+You are a document analysis expert. I will provide you with various types of documents. Your task is to strictly extract the following predefined fields. Do not infer, guess, or create any additional fields beyond what is listed. Return empty strings ("") for any missing or unavailable data.
 
-
-INFO_GRAB_NOT_POA_PROMPT = """
-You are a document analysis expert. I will provide you with various types of documents, and you are strictly required to extract the necessary information. Do not infer or create any new fields beyond the provided ones.
-Info needed:
+Information to extract:
 - Creditor Name
-- Account Number
-- Last Name
-- First Name
+- Reference Number
+- File Number
+- Full Account Number
+- Last4AccountNumber (last 4 digits only; may appear as BAC)
+- First 12 digits of Account Number (if available)
+- First 8 digits of Account Number (if available)
+- Last Name (must be without tone marks, and should only contain the client’s last name)
+- First Name (must be without tone marks, and should only contain the client’s first name)
+- Email (if present)
+- Last 4 digits of SSN (only the numeric digits, no formatting)
 
-Strictly return the information in the following JSON format:
+Strictly return the result in the following JSON format:
+
 {
-  "Creditor": "<Creditor Name>",
-  "AccountNumber": "<Account Number>",
+  "CreditorName": "<Creditor Name>",
+  "ReferenceNumber": "<Reference Number>",
+  "FileNumber": "<File Number>",
+  "FullAccountNumber": "<Full Account Number>",
+  "Last4AccountNumber": "<Last 4 digits of Account Number>",
+  "First12AccountNumber": "<First 12 digits of Account Number>",
+  "First8AccountNumber": "<First 8 digits of Account Number>",
   "LastName": "<Last Name>",
-  "FirstName": "<First Name>"
+  "FirstName": "<First Name>",
+  "Email": "<Email>",
+  "Last4SSN": "<Last 4 digits of SSN>"
 }
 """
 
-INFO_GRAB_POA_PROMPT= """
-You are a document analysis expert. I will provide you with various types of documents, and you are strictly required to extract the necessary information. Do not infer or create any new fields beyond the provided ones.
-Info needed:
-- Social Security Number (SSN)
-- Account Number
-- Last Name
-- First Name
+
+INFO_GRAB_CREDITOR_PROMPT = """
+You are a document analysis expert. I will provide you with various types of documents, and you are strictly to get the creditor name from the document. Do not infer or create any new fields beyond the provided ones.
+The creditor name is the one will be listed here: "{CreditorName}"
+Only return the name of the creditor from my list.
 Strictly return the information in the following JSON format:
-{
-  "SSN": "<Social Security Number>",
-  "AccountNumber": "<Account Number>",
-  "LastName": "<Last Name>",
-  "FirstName": "<First Name>"
-}
+{{
+  "Creditor": "<Creditor Name>"
+}}
 """
