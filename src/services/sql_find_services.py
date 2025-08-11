@@ -117,6 +117,7 @@ class MSSQLProfileFinder:
         return self.find_reference_number(data)
 
     def find_reference_number(self, data: Dict) -> Dict[str, Any]:
+        print("\n[DEBUG] Finding profile by Reference Number...")
         reference_number = data.get("ReferenceNumber", "")
         lastname = data.get("LastName", "")
         firstname = data.get("FirstName", "")
@@ -150,6 +151,7 @@ class MSSQLProfileFinder:
         )
 
     def find_file_number(self, data: Dict) -> Dict[str, Any]:
+        print("\n[DEBUG] Finding profile by File Number...")
         file_number = data.get("FileNumber", "")
         lastname = data.get("LastName", "")
         firstname = data.get("FirstName", "")
@@ -184,6 +186,7 @@ class MSSQLProfileFinder:
 
     
     def find_full_account_numbers(self, data: Dict) -> Dict[str, Any]:
+        print("\n[DEBUG] Finding profile by Full Account Number...")
         full_account_number = data.get("FullAccountNumber", "")
         lastname = data.get("LastName", "")
         firstname = data.get("FirstName", "")
@@ -217,6 +220,7 @@ class MSSQLProfileFinder:
         )
 
     def find_last4_account_number(self, data: Dict) -> Dict[str, Any]:
+        print("\n[DEBUG] Finding profile by Last 4 Account Number...")
         last4_account_number = data.get("Last4AccountNumber", "")
         lastname = data.get("LastName", "")
         firstname = data.get("FirstName", "")
@@ -250,6 +254,7 @@ class MSSQLProfileFinder:
         )
 
     def find_first12_account_number(self, data: Dict) -> Dict[str, Any]:
+        print("\n[DEBUG] Finding profile by First 12 Account Number...")
         first12_account_number = data.get("First12AccountNumber", "")
         lastname = data.get("LastName", "")
         firstname = data.get("FirstName", "")
@@ -283,6 +288,7 @@ class MSSQLProfileFinder:
         )
     
     def find_first8_account_number(self, data: Dict) -> Dict[str, Any]:
+        print("\n[DEBUG] Finding profile by First 8 Account Number...")
         first8_account_number = data.get("First8AccountNumber", "")
         lastname = data.get("LastName", "")
         firstname = data.get("FirstName", "")
@@ -316,6 +322,7 @@ class MSSQLProfileFinder:
         )   
     
     def find_email(self, data: Dict) -> Dict[str, Any]:
+        print("\n[DEBUG] Finding profile by Email...")
         email = data.get("Email", "")
         lastname = data.get("LastName", "")
         firstname = data.get("FirstName", "")
@@ -334,7 +341,7 @@ class MSSQLProfileFinder:
             FROM Profiles p
             LEFT JOIN ProfileContacts pc on p.ProfileId = pc.ProfileId
                 AND pc.ContactId = 'E956B381-E501-4CF0-9C9E-CB32DAF52940'
-            WHERE (pc.Email like ?)
+            WHERE (pc.Value like ?)
         """
 
         params = [f"%{email}%"]
@@ -348,6 +355,7 @@ class MSSQLProfileFinder:
         )
 
     def find_ssn(self, data: Dict) -> Dict[str, Any]:
+        print("\n[DEBUG] Finding profile by Last 4 SSN...")
         last4ssn = data.get("Last4SSN", "")
         lastname = data.get("LastName", "")
         firstname = data.get("FirstName", "")
@@ -370,8 +378,64 @@ class MSSQLProfileFinder:
         return self.filter_and_resolve(
             results,
             field_filters=[("LastName", lastname), ("FirstName", firstname)],
+            fallback=lambda: self.find_name(data)
+        )
+    
+    def find_name(self, data: Dict) -> Dict[str, Any]:
+        print("\n[DEBUG] Finding profile by Name...")
+        lastname = data.get("LastName", "")
+        firstname = data.get("FirstName", "")
+        creditor = data.get("Creditor", "").strip()
+
+        SQL = """
+            SELECT
+                p.ProfileId,
+                l.LiabilityId,
+                p.FirstName,
+                p.LastName,
+                p.SSN,
+                p.Status,
+                l.Enrolled
+            FROM Profiles p
+            JOIN Liabilities l ON p.ProfileId = l.ProfileId
+            LEFT JOIN CreditorMasters orc ON l.OriginalCreditor = orc.CreditorMasterId 
+            LEFT JOIN CreditorMasters crc ON l.CurrentCreditor = crc.CreditorMasterId 
+            WHERE l.Active = 1
+                AND L.enrolled = 1
+                and (orc.Name = ? or crc.Name = ?)
+                AND p.LastName = ? AND p.FirstName = ?
+        """
+
+        params = [creditor, creditor, lastname, firstname]
+
+        results = self.db.fetchall(SQL, params)
+        print(f"[DEBUG] Found {len(results)} row(s) matching Name criteria")
+        for r in results:
+            print(f"  - ProfileId: {r.ProfileId}, LastName: {r.LastName}, FirstName: {r.FirstName}, LiabilityId: {getattr(r, 'LiabilityId', None)}, Status: {r.Status}")
+
+
+        return self.filter_and_resolve(
+            results,
+            field_filters=[("LastName", lastname), ("FirstName", firstname)],
             fallback=lambda: {"Status": 1, "ProfileId": None, "LiabilityId": None}
         )
+
+    def close(self):
+        self.db.close()
+        
+class MSSQLCreditorFinder:
+    def __init__(self, db: MSSQLConnect):
+        self.db = db
+        self.db.init()
+
+    def get_all_active_creditor_names(self) -> List[str]:
+        SQL = """
+            SELECT Name
+            FROM CreditorMasters
+            WHERE Active = '1'
+        """
+        results = self.db.fetchall(SQL)
+        return [results]
 
     def close(self):
         self.db.close()
@@ -641,19 +705,3 @@ class MSSQLProfileFinder:
 #     def close(self):
 #         self.db.close()
 
-# class MSSQLCreditorFinder:
-#     def __init__(self, db: MSSQLConnect):
-#         self.db = db
-#         self.db.init()
-
-#     def get_all_active_creditor_names(self) -> List[str]:
-#         SQL = """
-#             SELECT Name
-#             FROM CreditorMasters
-#             WHERE Active = '1'
-#         """
-#         results = self.db.fetchall(SQL)
-#         return [results]
-
-#     def close(self):
-#         self.db.close()

@@ -11,34 +11,52 @@ from src.services.logging_services import setup_logger
 from src.services.config_loader_services import config_loader
 from src.knowledges import prompt as prompt
 from src.services.document_categorizing_services import DocumentCategorizingService, categorizing_document
-from src.services.sql_find_services import MSSQLConnect, MSSQLProfileFinder
+from src.services.sql_find_services import MSSQLConnect, MSSQLProfileFinder, MSSQLCreditorFinder
+# from src.services.s3_services import S3Service
+
 
 class CrmDocumentOrganizerService:
-    def __init__(
-        self,
-        *,
-        project_id: str = config_loader.get("GCP", "project_id", "GCP_PROJECT_ID"),
-        location: str = config_loader.get("GCP", "location", "GCP_LOCATION", "us"),
-        processor_id: str = config_loader.get("GCP", "processor_id", "GCP_PROCESSOR_ID"),
-        bucket_name: str = config_loader.get("GCP", "bucket_name", "GCP_BUCKET_NAME"),
-        logger=None,
-    ) -> None:
+    def __init__(self, logger=None) -> None:
         self.logger = logger or setup_logger(self.__class__.__name__)
-        self._gpt = GPTServices()
+
+        self.project_id = config_loader.get("GCP", "project_id", "GCP_PROJECT_ID")
+        self.location = config_loader.get("GCP", "location", "GCP_LOCATION", "us")
+        self.processor_id = config_loader.get("GCP", "processor_id", "GCP_PROCESSOR_ID")
+        self.bucket_name = config_loader.get("GCP", "bucket_name", "GCP_BUCKET_NAME")
+        self.openai_key = config_loader.get("openai", "api_key", "OPENAI_API_KEY")
+        self.aws_access_key_id = config_loader.get("S3", "AWS_ACCESS_KEY_ID")
+
+        # self.aws_secret_access_key = config_loader.get("S3", "AWS_SECRET_ACCESS_KEY")
+        # self.aws_region = config_loader.get("S3", "REGION")
+        # self.s3_bucket_name = config_loader.get("S3", "BUCKET_NAME")
+        # self.s3_folder_name = config_loader.get("S3", "FOLDER_NAME")
+
+        self._gpt = GPTServices(api_key=self.openai_key)
+
         self._ocr = GoogleOCRService(
-            project_id=project_id,
-            location=location,
-            processor_id=processor_id,
-            bucket_name=bucket_name,
+            project_id=self.project_id,
+            location=self.location,
+            processor_id=self.processor_id,
+            bucket_name=self.bucket_name,
         )
+
         self.document_categorizing_service = DocumentCategorizingService(
-            project_id=project_id,
-            location=location,
-            processor_id=processor_id,
-            bucket_name=bucket_name,
+            project_id=self.project_id,
+            location=self.location,
+            processor_id=self.processor_id,
+            bucket_name=self.bucket_name,
+            api_key=self.openai_key,
             logger=self.logger
         )
-    
+
+        # self._s3 = S3Service(
+        #     aws_access_key_id=self.aws_access_key_id,
+        #     aws_secret_access_key=self.aws_secret_access_key,
+        #     region=self.aws_region,
+        #     bucket_name=self.s3_bucket_name,
+        #     folder_name=self.s3_folder_name,
+        # )
+
     def run_ocr(self, file_bytes: bytes, file_name: str) -> str:
         try:
             self.logger.info("OCR %s", file_name)
@@ -65,10 +83,11 @@ class CrmDocumentOrganizerService:
         return info_grab
     
 
-    def FindProfileandLiability(
+    def findProfileandLiability(
             self, 
             lastname: str, 
-            firstname: str, 
+            firstname: str,
+            creditor: str,
             reference_number: str, 
             file_number: str, 
             last4_account_number: str, 
@@ -87,6 +106,7 @@ class CrmDocumentOrganizerService:
             test_data = {
                 "LastName": lastname,
                 "FirstName": firstname,
+                "Creditor": creditor,
                 "ReferenceNumber": reference_number,
                 "FileNumber": file_number,                
                 "Last4AccountNumber": last4_account_number,    
@@ -105,11 +125,36 @@ class CrmDocumentOrganizerService:
             finder.close()
             self.logger.info("Connection closed.")
 
+    def findCreditor(self, extracted_text: str) -> Dict[str, Any]:
+        self.logger.info("Finding Creditor...")
+        db = MSSQLConnect()
+        finder = MSSQLCreditorFinder(db)
+
+        try:
+            creditor_names = finder.get_all_active_creditor_names()
+            creditor_block = "\n".join(f"- {name}" for name in creditor_names)
+            populated_prompt = prompt.INFO_GRAB_CREDITOR_PROMPT.format(CreditorName=creditor_block)
+            response = self._gpt.gpt_services(
+                text=extracted_text,
+                prompt=populated_prompt,
+                model="gpt-4.1",
+                temperature=0.1
+            )
+
+            return response
+
+        except Exception as e:
+            self.logger.error("Error in FindCreditor: %s", str(e), exc_info=True)
+            return {"Creditor": None, "Error": str(e)}
+        finally:
+            finder.close()
 
     def document_organizer(self, file_bytes: bytes, file_name: str) -> Dict[str, Any]:
         self.logger.info("Organizing document: %s", file_name)
         ocr_text = self.run_ocr(file_bytes, file_name)
+
         category_info = self.categorizing_document(file_bytes, file_name)
+        creditor = self.findCreditor(ocr_text).get("Creditor", "Unknown Creditor")
         info_grab = self.info_grab(ocr_text, file_name)
         lastname = info_grab.get("LastName", "")
         firstname = info_grab.get("FirstName", "")
@@ -121,9 +166,10 @@ class CrmDocumentOrganizerService:
         first8_account_number = info_grab.get("First8AccountNumber", "")
         email = info_grab.get("Email", "")
         last4_ssn = info_grab.get("Last4SSN", "")
-        account = self.FindProfileandLiability(
+        account = self.findProfileandLiability(
             lastname, 
             firstname, 
+            creditor,
             reference_number, 
             file_number, 
             last4_account_number, 
@@ -135,6 +181,7 @@ class CrmDocumentOrganizerService:
         info = {
             "LastName": lastname,
             "FirstName": firstname,
+            "Creditor": creditor,
             "ReferenceNumber": reference_number,
             "FileNumber": file_number,
             "Last4AccountNumber": last4_account_number,

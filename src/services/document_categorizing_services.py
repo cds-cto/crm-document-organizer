@@ -15,14 +15,15 @@ class DocumentCategorizingService:
     def __init__(
         self,
         *,
-        project_id: str = config_loader.get("GCP", "project_id", "GCP_PROJECT_ID"),
-        location: str = config_loader.get("GCP", "location", "GCP_LOCATION", "us"),
-        processor_id: str = config_loader.get("GCP", "processor_id", "GCP_PROCESSOR_ID"),
-        bucket_name: str = config_loader.get("GCP", "bucket_name", "GCP_BUCKET_NAME"),
+        project_id: str,
+        location: str,
+        processor_id: str,
+        bucket_name: str,
+        api_key: str,
         logger=None,
     ) -> None:
         self.logger = logger or setup_logger(self.__class__.__name__)
-        self._gpt = GPTServices()
+        self._gpt = GPTServices(api_key=api_key)
         self._ocr = GoogleOCRService(
             project_id=project_id,
             location=location,

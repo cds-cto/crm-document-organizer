@@ -2,7 +2,7 @@ services:
   app:
     build: .
     container_name: document_organizer
-    command: uvicorn src.main:app --host 0.0.0.0 --port 80 --reload
+    command: uvicorn src.main:app --host 0.0.0.0 --port 80 --workers 4
     ports:
       - 80:80
       - 5679:5679

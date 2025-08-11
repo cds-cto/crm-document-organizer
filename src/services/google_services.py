@@ -18,7 +18,7 @@ from google.cloud import storage
 from src.services.logging_services import setup_logger
 from src.services.config_loader_services import config_loader
 
-cred_path_cfg = config_loader.get("GCP", "key_file")       # e.g. polling-apps-…json
+cred_path_cfg = config_loader.get("GCP", "key_file")
 cred_path_env = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
 if not cred_path_env and cred_path_cfg:
     kp = Path(cred_path_cfg).expanduser()
@@ -30,23 +30,24 @@ class GoogleOCRService:
     def __init__(
         self,
         *,
-        project_id: str = config_loader.get("GCP", "project_id"),
-        location: str = config_loader.get("GCP", "location", "us"),
-        processor_id: str = config_loader.get("GCP", "processor_id"),
-        bucket_name: str = config_loader.get("GCP", "bucket_name"),
+        project_id: str,
+        location: str,
+        processor_id: str,
+        bucket_name: str,
     ) -> None:
-        self.project_id   = project_id
-        self.location     = location
+        self.project_id = project_id
+        self.location = location
         self.processor_id = processor_id
-        self.bucket_name  = bucket_name
+        self.bucket_name = bucket_name
 
         self.logger = setup_logger(self.__class__.__name__)
-        self.storage_client   = storage.Client()
+        self.storage_client = storage.Client()
         self.documentai_client = documentai.DocumentProcessorServiceClient(
             client_options=ClientOptions(
                 api_endpoint=f"{self.location}-documentai.googleapis.com"
             )
         )
+
 
     # ── internal helper ─────────────────────────────────────────
     def _process_page(

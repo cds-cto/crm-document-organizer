@@ -9,12 +9,11 @@ from src.services.logging_services import setup_logger
 from src.services.config_loader_services import config_loader
 
 class GPTServices:
-    def __init__(self):
-        self.api_key = config_loader.get("openai", "api_key", "OPENAI_API_KEY")
-        if not self.api_key:
-            raise ValueError("OpenAI API key not found in configuration or environment variables.")      
+    def __init__(self, api_key: str):
+        if not api_key:
+            raise ValueError("OpenAI API key is required.")
+        self.api_key = api_key
         self.client = OpenAI(api_key=self.api_key)
-
         self.logger = setup_logger(self.__class__.__name__)
 
         
