@@ -1,377 +1,126 @@
-from common.constants import FUZZY_SEARCH_TOLERANCE, PRIMARY_ADDRESS_ID
-from common.enums import UnMappedDocumentStatus
-from common.error_code import ErrorCode
-from services.sqlconnect import SqlConnect
-from langchain_core.documents import Document
+import os, io, json, mimetypes, requests
+from urllib.parse import urlparse, unquote
+from typing import Any, Dict, List, Optional, Tuple
 
+from src.services.config_loader_services import config_loader
 
-class CrmService:
-    def __init__(self, config_file, config_name):
-        self.sql = SqlConnect(config_file, config_name)
-        self.sql.init()
+DEFAULT_SSICRM_URL = "https://ssi-crm.com/api"
+SSICRM_MAIN_URL = config_loader.get("ssicrm", "base_url", env="SSICRM_MAIN_URL", default=DEFAULT_SSICRM_URL)
 
-    #### get profileds for redis vector store   #####
-    def get_profiles_for_vector_store(self):
-        """Get profiles
-        status: 1,2: submited,enrolled
-        AddressId ='5BA9CF57-608F-424D-9385-F543A2708BAF' : primary address
-        """
+class SSICRMService:
+    """
+    Encapsulates all interactions with SSICRM.
+    """
+    def __init__(self):
+        self.r = requests.Session()
+        self.token: Optional[str] = None
+        self.refresh_token: Optional[str] = None
 
-        try:
-            SQL = f"""
-                    select p.ProfileId,pa.Address1,p.Last4SSN,p.FirstName,p.LastName,pa.State, pa.City, pa.ZipCode,l.LiabilityId, l.AccountNumber,l.CurrentAccountNumber from Profiles p 
-                    join ProfileAddresses pa on p.ProfileId = pa.ProfileId
-                    join Liabilities l on p.ProfileId  = l.ProfileId 
-                    WHERE pa.AddressId ='{PRIMARY_ADDRESS_ID}'
-                    and p.Status in (1,2);
-
-            """
-            fetches = self.sql.fetchall(SQL, [])
-
-            documents_last4 = []
-            documents_last12 = []
-            documents_last16 = []
-
-            for item in fetches:
-                base_content = f"{item[3]} {item[4]} lives at {item[1]}, {item[6]}, {item[5]} {item[7]} and has Last4SSN: {item[2]}."
-                base_metadata = {
-                    "ProfileId": str(item[0]),
-                    "Name": f"{item[3]} {item[4]}",
-                    "Street": str(item[1]),
-                    "City": str(item[6]),
-                    "State": str(item[5]),
-                    "ZipCode": str(item[7]),
-                    "Last4SSN": str(item[2]),
-                    "LiabilityId": str(item[8]),
-                }
-
-                documents_last4.append(
-                    Document(
-                        page_content=f"{base_content} Last4AccountNumbers: {item[9][-4:]}. Last4CurrentAccountNumbers: {item[10][-4:]}.",
-                        metadata=base_metadata,
-                    )
-                )
-
-                documents_last12.append(
-                    Document(
-                        page_content=f"{base_content} Last12AccountNumbers: {item[9][-12:]}. Last12CurrentAccountNumbers: {item[10][-12:]}.",
-                        metadata=base_metadata,
-                    )
-                )
-
-                documents_last16.append(
-                    Document(
-                        page_content=f"{base_content} Last16AccountNumbers: {item[9][-16:]}. Last16CurrentAccountNumbers: {item[10][-16:]}.",
-                        metadata=base_metadata,
-                    )
-                )
-
-            return documents_last4, documents_last12, documents_last16
-
-        except Exception as e:
-            print(f"Error fetching recordings: {str(e)}")
-            raise Exception(ErrorCode.GET_PROFILES_ERROR)
-
-    #### get profileds from db   #####
-    #### query: {FirstName, LastName, Last4Ssn, ZipCode, AccountNumber} #####
-    def find_profiles_from_db(self, query):
-        """Get profiles
-        status: 1,2: submited,enrolled
-        AddressId ='5BA9CF57-608F-424D-9385-F543A2708BAF' : primary address
-        """
-        if query["AccountNumber"] == "null" or query["AccountNumber"] == None:
-            return None
-        try:
-            SQL = f"""
-                select p.ProfileId,pa.Address1,p.Last4SSN,p.FirstName,p.LastName,pa.State, pa.City, pa.ZipCode,l.LiabilityId, l.AccountNumber,l.CurrentAccountNumber from Profiles p 
-                join ProfileAddresses pa on p.ProfileId = pa.ProfileId
-                join Liabilities l on p.ProfileId  = l.ProfileId 
-                and pa.AddressId ='{PRIMARY_ADDRESS_ID}'
-                and p.Status in (1,2)
-                and p.FirstName LIKE '{query['FirstName']}%' and p.LastName LIKE '{query['LastName']}'
-
-            """
-            if query["City"] != "null" and query["City"] != None:
-                SQL += f" and pa.City = '{query['City']}'"
-            if query["Last4Ssn"] != "null" and query["Last4Ssn"] != None:
-                SQL += f" and p.Last4Ssn = '{query['Last4Ssn']}'"
-            if query["ZipCode"] != "null" and query["ZipCode"] != None:
-                SQL += f" and pa.ZipCode = '{query['ZipCode']}'"
-            # case account number
-            if query["AccountNumber"] != "null" and query["AccountNumber"] != None:
-                SQL += f" and (RIGHT(l.AccountNumber,  {len(query["AccountNumber"])}) = '{query['AccountNumber']}' or RIGHT(l.CurrentAccountNumber,  {len(query["AccountNumber"])}) = '{query['AccountNumber']}')"
-                SQL += f" ORDER BY CASE WHEN RIGHT(l.CurrentAccountNumber, {len(query['AccountNumber'])}) = '{query['AccountNumber']}' THEN 0 ELSE 1 END"
-
-            # print(SQL)
-            fetches = self.sql.fetchall(SQL, [])
-            if fetches == None or len(fetches) == 0:
-                fetches = self.find_profiles_by_ssn_account_number(query)
-            if fetches == None or len(fetches) == 0:
-                fetches = self.find_profiles_by_name_account_number(query)
-
-            if fetches == None or len(fetches) == 0:
-                profiles_by_name_and_state = self.find_profiles_by_name_and_state(query)
-                fetches = self.find_profiles_by_fuzzy_search(
-                    query, profiles_by_name_and_state
-                )
-
-            if fetches == None:
-                return None
-
-            documents = [
-                {
-                    "ProfileId": item[0],
-                    "Address1": item[1],
-                    "Last4SSN": item[2],
-                    "FirstName": item[3],
-                    "LastName": item[4],
-                    "State": item[5],
-                    "City": item[6],
-                    "ZipCode": item[7],
-                    "LiabilityId": item[8],
-                    "AccountNumber": item[9],
-                    "CurrentAccountNumber": item[10],
-                }
-                for item in fetches
-            ]
-            # todo: return first item
-            if len(documents) > 0:
-                return documents[0]
-            else:
-                return None
-
-        except Exception as e:
-            print(f"Error fetching recordings: {str(e)}")
-            raise Exception(ErrorCode.GET_PROFILES_ERROR)
-
-    def find_profiles_by_ssn_account_number(self, query):
-        """Get profiles
-        status: 1,2: submited,enrolled
-        AddressId ='5BA9CF57-608F-424D-9385-F543A2708BAF' : primary address
-        """
-        try:
-            if query["Last4Ssn"] == "null" or query["Last4Ssn"] == None:
-                return None
-            if query["AccountNumber"] == "null" or query["AccountNumber"] == None:
-                return None
-
-            SQL = f"""
-                select p.ProfileId,pa.Address1,p.Last4SSN,p.FirstName,p.LastName,pa.State, pa.City, pa.ZipCode,l.LiabilityId, l.AccountNumber,l.CurrentAccountNumber from Profiles p 
-                join ProfileAddresses pa on p.ProfileId = pa.ProfileId
-                join Liabilities l on p.ProfileId  = l.ProfileId 
-                and pa.AddressId ='{PRIMARY_ADDRESS_ID}'
-                and p.Status in (1,2)
-
-            """
-            SQL += f" and p.Last4Ssn = '{query['Last4Ssn']}'"
-            # case account number
-            if query["AccountNumber"] != "null" and query["AccountNumber"] != None:
-                SQL += f" and (RIGHT(l.AccountNumber,  {len(query["AccountNumber"])}) = '{query['AccountNumber']}' or RIGHT(l.CurrentAccountNumber,  {len(query["AccountNumber"])}) = '{query['AccountNumber']}')"
-                SQL += f" ORDER BY CASE WHEN RIGHT(l.CurrentAccountNumber, {len(query['AccountNumber'])}) = '{query['AccountNumber']}' THEN 0 ELSE 1 END"
-            # print(SQL)
-            fetches = self.sql.fetchall(SQL, [])
-
-            return fetches
-
-        except Exception as e:
-            print(f"Error fetching recordings: {str(e)}")
-            raise Exception(ErrorCode.GET_PROFILES_ERROR)
-
-    def find_profiles_by_name_account_number(self, query):
-        """Get profiles
-        status: 1,2: submited,enrolled
-        AddressId ='5BA9CF57-608F-424D-9385-F543A2708BAF' : primary address
-        """
-        try:
-            if query["FirstName"] == "null" or query["FirstName"] == None:
-                return None
-            if query["LastName"] == "null" or query["LastName"] == None:
-                return None
-            if query["AccountNumber"] == "null" or query["AccountNumber"] == None:
-                return None
-
-            SQL = f"""
-                select p.ProfileId,pa.Address1,p.Last4SSN,p.FirstName,p.LastName,pa.State, pa.City, pa.ZipCode,l.LiabilityId, l.AccountNumber,l.CurrentAccountNumber from Profiles p 
-                join ProfileAddresses pa on p.ProfileId = pa.ProfileId
-                join Liabilities l on p.ProfileId  = l.ProfileId 
-                and pa.AddressId ='{PRIMARY_ADDRESS_ID}'
-                and p.Status in (1,2)
-                and p.FirstName LIKE '{query['FirstName']}%' and p.LastName LIKE '{query['LastName']}'
-
-
-            """
-            # state
-            if query["State"] != "null" and query["State"] != None:
-                SQL += f" and pa.State = '{query['State']}'"
-            # case account number
-            if query["AccountNumber"] != "null" and query["AccountNumber"] != None:
-                SQL += f" and (RIGHT(l.AccountNumber,  {len(query["AccountNumber"])}) = '{query['AccountNumber']}' or RIGHT(l.CurrentAccountNumber,  {len(query["AccountNumber"])}) = '{query['AccountNumber']}')"
-                SQL += f" ORDER BY CASE WHEN RIGHT(l.CurrentAccountNumber, {len(query['AccountNumber'])}) = '{query['AccountNumber']}' THEN 0 ELSE 1 END"
-            # print(SQL)
-            fetches = self.sql.fetchall(SQL, [])
-
-            return fetches
-
-        except Exception as e:
-            print(f"Error fetching recordings: {str(e)}")
-            raise Exception(ErrorCode.GET_PROFILES_ERROR)
-
-    def find_profiles_by_name_and_state(self, query):
-        """Get profiles
-        status: 1,2: submited,enrolled
-        AddressId ='5BA9CF57-608F-424D-9385-F543A2708BAF' : primary address
-        """
-        try:
-            if query["FirstName"] == "null" or query["FirstName"] == None:
-                return None
-            if query["LastName"] == "null" or query["LastName"] == None:
-                return None
-
-            SQL = f"""
-                select p.ProfileId,pa.Address1,p.Last4SSN,p.FirstName,p.LastName,pa.State, pa.City, pa.ZipCode,l.LiabilityId, l.AccountNumber,l.CurrentAccountNumber from Profiles p 
-                join ProfileAddresses pa on p.ProfileId = pa.ProfileId
-                join Liabilities l on p.ProfileId  = l.ProfileId 
-                and pa.AddressId ='{PRIMARY_ADDRESS_ID}'
-                and p.Status in (1,2)
-                and p.FirstName LIKE '{query['FirstName']}%' and p.LastName LIKE '{query['LastName']}'
-
-
-            """
-            # state
-            if query["State"] != "null" and query["State"] != None:
-                SQL += f" and pa.State = '{query['State']}'"
-
-            fetches = self.sql.fetchall(SQL, [])
-
-            return fetches
-
-        except Exception as e:
-            print(f"Error fetching recordings: {str(e)}")
-            raise Exception(ErrorCode.GET_PROFILES_ERROR)
-
-    def find_profiles_by_fuzzy_search(self, query, profiles):
-        """
-        Fuzzy search for account numbers with allowed error tolerance
-        Args:
-            query: search criteria including AccountNumber
-            profiles: list of profile records to search through
-            k: error tolerance (default=1) - number of allowed mismatches
-        Returns:
-            List of matching profile records
-        """
-        try:
-            if (
-                not profiles
-                or query["AccountNumber"] == "null"
-                or query["AccountNumber"] is None
-            ):
-                return None
-
-            search_number = query["AccountNumber"]
-            matching_profiles = []
-
-            for profile in profiles:
-                # Get last N digits of both account numbers where N = length of search number
-                acc_last_digits = profile[9][-len(search_number) :]  # AccountNumber
-                current_acc_last_digits = profile[10][
-                    -len(search_number) :
-                ]  # CurrentAccountNumber
-
-                # Check both account numbers for matches
-                if self._is_fuzzy_match(
-                    search_number, acc_last_digits, FUZZY_SEARCH_TOLERANCE
-                ) or self._is_fuzzy_match(
-                    search_number, current_acc_last_digits, FUZZY_SEARCH_TOLERANCE
-                ):
-                    matching_profiles.append(profile)
-
-            # Sort matches - exact matches first, then fuzzy matches
-            matching_profiles.sort(
-                key=lambda x: (
-                    self._count_differences(
-                        search_number, x[10][-len(search_number) :]
-                    ),  # CurrentAccountNumber first
-                    self._count_differences(
-                        search_number, x[9][-len(search_number) :]
-                    ),  # Then AccountNumber
-                )
-            )
-
-            return matching_profiles
-
-        except Exception as e:
-            print(f"Error in fuzzy search: {str(e)}")
-            raise Exception(ErrorCode.GET_PROFILES_ERROR)
-
-    def _is_fuzzy_match(self, search_number, target_number, k):
-        """
-        Check if two numbers match within allowed error tolerance
-        """
-        if len(search_number) != len(target_number):
-            return False
-
-        differences = self._count_differences(search_number, target_number)
-        return differences <= k
-
-    def _count_differences(self, num1, num2):
-        """
-        Count number of different digits between two numbers
-        """
-        try:
-            return sum(1 for a, b in zip(str(num1), str(num2)) if a != b)
-        except:
-            return float("inf")  # Return infinity if comparison fails
-
-    def get_unmapped_documents(self):
-        SQL = f"""
-            select DocumentId, Name, Title, Status, Category, Description, ProfileId, LiabilityId, Active, CreatedBy, CreatedAt, ModifiedBy, ModifiedAt from UnMappedDocuments where Status = '{UnMappedDocumentStatus.UPLOADED.value}'
-        """
-        print(SQL)
-        fetches = self.sql.fetchall(SQL, [])
-        return fetches
-
-    def update_unmapped_documents(self, document_info):
-        """Update unmapped document status, category, profile and liability"""
-        try:
-            document_id = document_info["DocumentId"]
-            status = document_info["Status"]
-            category = "NULL" if document_info["Category"] is None else f"'{document_info['Category']}'"
-            profile_id = "NULL" if document_info["ProfileId"] is None else f"'{document_info['ProfileId']}'"
-            liability_id = "NULL" if document_info["LiabilityId"] is None else f"'{document_info['LiabilityId']}'"
-            updated_by = document_info["UpdatedBy"]
-            updated_at = document_info["UpdatedAt"]
-
-            SQL = """
-                UPDATE UnMappedDocuments 
-                SET Status = '{0}',
-                    Category = {1},
-                    ProfileId = {2},
-                    LiabilityId = {3},
-                    ModifiedBy = '{4}',
-                    ModifiedAt = '{5}'
-                WHERE DocumentId = '{6}'
-            """.format(
-                status,
-                category,
-                profile_id,
-                liability_id,
-                updated_by,
-                updated_at,
-                document_id,
-            )
-
-            self.sql.commit(SQL, [])
+    # ------------------ Auth ------------------
+    def login(self, user_name: str, password: str) -> bool:
+        url = f"{SSICRM_MAIN_URL}/User/auth"
+        data = {"userName": user_name, "password": password, "returnUrl": ""}
+        res = self.r.post(url, json=data, timeout=30)
+        if res.status_code == 200:
+            body = res.json()
+            self.token = body["data"]["token"]
+            self.refresh_token = body["data"]["refreshToken"]
+            print("Login to SSICRM successful")
             return True
+        raise RuntimeError(f"Can't log in to SSICRM (status {res.status_code}): {res.text[:200]}")
 
-        except Exception as e:
-            print(f"Error updating unmapped document: {str(e)}")
+    # ------------------ Unmapped search ------------------
+    def search_unmapped_documents(self) -> List[Dict[str, Any]]:
+        self._require_auth()
+        headers = {"Content-Type": "application/json", "authorization": f"Bearer {self.token}"}
+        url = f"{SSICRM_MAIN_URL}/UnMappedDocument/search"
+        data = {
+            "start": 0,
+            "length": 10_000_000,
+            "columns": [{"columnName": "status", "search": {"value": 0, "operator": 0}}],
+        }
+        res = self.r.post(url, json=data, headers=headers, timeout=60)
+        res.raise_for_status()
+        payload = res.json()
+        return (payload.get("data") or {}).get("data") or []
 
-    def is_liability_belong_to_profile(self, liability_id, profile_id):
-        SQL = f"""
-            select count(1) from Liabilities where LiabilityId = '{liability_id}' and ProfileId = '{profile_id}' and Enrolled = 1
+    # ------------------ Preview URL ------------------
+    def preview_document(self, document_id: str) -> Optional[str]:
+        self._require_auth()
+        headers = {"Content-Type": "application/json", "authorization": f"Bearer {self.token}"}
+        url = f"{SSICRM_MAIN_URL}/UnMappedDocument/{document_id}/preview"
+        res = self.r.post(url, json={"URL": True}, headers=headers, timeout=60)
+        if res.status_code != 200:
+            print(f"Failed to preview document {document_id}. Status code: {res.status_code}")
+            return None
+        body = res.json()
+        return (body.get("data") or {}).get("url")
+
+    # ------------------ Save changes ------------------
+    def save_changes(
+        self,
+        document_id: str,
+        profile_id: Optional[str],
+        liability_id: Optional[str],
+        title: str,
+        category: str,
+        status: int,
+        description: str = "description",
+    ) -> Optional[Dict[str, Any]]:
         """
-        fetches = self.sql.fetchall(SQL, [])
-        return bool(fetches[0][0])
+        Updates unmapped document fields in SSICRM.
+        'category' should be the UUID returned by CDS (category_uuid) if SSICRM expects UUID.
+        """
+        self._require_auth()
+        headers = {"Content-Type": "application/json", "authorization": f"Bearer {self.token}"}
+        url = f"{SSICRM_MAIN_URL}/UnMappedDocument/{document_id}"  # ensure /save
+        data = {
+            "documentId": document_id,
+            "profileId": profile_id,
+            "liabilityId": liability_id,
+            "title": title,
+            "category": category,
+            "description": description,
+            "status": status,
+        }
+        res = self.r.put(url, json=data, headers=headers, timeout=60)
+        if res.status_code != 200:
+            print(f"Failed to save changes for document {document_id}. Status code: {res.status_code}")
+            return None
+        return res.json()
 
-    def close(self):
-        self.sql.close()
+    # ------------------ Download helper ------------------
+    def download_file(self, file_url: str) -> Tuple[io.BytesIO, str, str]:
+        """
+        Downloads a file from a preview URL.
+        Returns: (bytes_io, filename, mime_type)
+        """
+        with self.r.get(file_url, stream=True, timeout=120) as resp:
+            resp.raise_for_status()
+
+            # Try filename from Content-Disposition; fallback to URL path
+            cd = resp.headers.get("Content-Disposition", "")
+            filename = None
+            if "filename=" in cd:
+                filename = cd.split("filename=")[-1].strip('"; ')
+                filename = unquote(filename)
+            if not filename:
+                filename = os.path.basename(urlparse(file_url).path) or "document"
+
+            # MIME type
+            mime_type = resp.headers.get("Content-Type")
+            if not mime_type or "/" not in mime_type:
+                mime_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+
+            buf = io.BytesIO()
+            for chunk in resp.iter_content(chunk_size=1024 * 1024):
+                if chunk:
+                    buf.write(chunk)
+            buf.seek(0)
+
+            return buf, filename, mime_type
+
+    # ------------------ Helper ------------------
+    def _require_auth(self):
+        if not self.token:
+            raise RuntimeError("Not authenticated to SSICRM. Call login() first.")
