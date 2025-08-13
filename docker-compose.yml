@@ -1,57 +1,23 @@
-version: "3.8"
+version: "3.9"
 
 services:
-  # redisV2:
-  #   image: redis/redis-stack-server:latest
-  #   restart: always
-  #   ports:
-  #     - "6379:6379"
-  #   volumes:
-  #     - ./redis-data:/root/redis
-  #     # - /path/to/local/redis.conf:/usr/local/etc/redis/redis.conf
-  #   environment:
-  #     - ALLOW_EMPTY_PASSWORD=yes
-  #     - REDIS_DISABLE_COMMANDS=FLUSHDB,FLUSHALL
-  #   networks:
-  #     - app-network
-
-  # redis-commander:
-  #   container_name: redis-commander
-  #   hostname: redis-commander
-  #   image: ghcr.io/joeferner/redis-commander:latest
-  #   restart: always
-  #   environment:
-  #   - REDIS_HOSTS=local:redis:6379
-  #   ports:
-  #   - "8081:8081"
-  #   user: redis
-  #   networks:
-  #     - app-network
-
   app:
     build: .
-    container_name: crm-document-organizer
-    command: python ./src/main.py
+    container_name: document_organizer
+    working_dir: /code
+    # command: uvicorn src.main:app --host 0.0.0.0 --port 80 --workers 4
+    # command: uvicorn src.main:app --host 0.0.0.0 --port 80 --reload
+    command: python -u -m src.main
     ports:
-      - 5679:5679
+      - 80:80        # not used by the script; safe to remove if you like
+      - 5679:5679    # keep if you attach a debugger
     volumes:
       - .:/code
-    # networks:
-    #   - app-network
-    # depends_on:
-    #   - redisV2
+    dns:
+      - 8.8.8.8
+    # no restart policy: container exits when the flow finishes
 
-#   redis-importer:
-#     build: .
-#     container_name: redis-importer
-#     command: python ./src/redis_importer.py
-#     ports:
-#       - 5669:5669
-#     networks:
-#       - app-network
-#     depends_on:
-#       - redisV2
-
-# networks:
-#   app-network:
-#     driver: bridge
+# detach mode + rebuild : docker compose up --build -d
+# check live : docker ps -a
+# go do detach mode, open IDE and debug
+# docker-compose up --build
