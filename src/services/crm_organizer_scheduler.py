@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Optional
-from src.services.cdszone_services import CDSZone2Service
-from src.services.crm_service import SSICRMService
+from services.cdszone_services import CDSZone2Service
+from services.crm_service import SSICRMService
 
 class DocumentProcessingFlow:
     """

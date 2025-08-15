@@ -2,7 +2,7 @@ import os, io, json, mimetypes, requests
 from urllib.parse import urlparse, unquote
 from typing import Any, Dict, List, Optional, Tuple
 
-from src.services.config_loader_services import config_loader
+from services.config_loader_services import config_loader
 
 DEFAULT_SSICRM_URL = "https://ssi-crm.com/api"
 SSICRM_MAIN_URL = config_loader.get("ssicrm", "base_url", env="SSICRM_MAIN_URL", default=DEFAULT_SSICRM_URL)
@@ -124,3 +124,4 @@ class SSICRMService:
     def _require_auth(self):
         if not self.token:
             raise RuntimeError("Not authenticated to SSICRM. Call login() first.")
+

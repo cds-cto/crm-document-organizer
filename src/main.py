@@ -2,7 +2,7 @@
 import json
 
 # from src.services.config_loader_services import config_loader
-from src.services import SSICRMService, CDSZone2Service, DocumentProcessingFlow, config_loader
+from services import SSICRMService, CDSZone2Service, DocumentProcessingFlow, config_loader
 
 # Debug
 # import debugpy

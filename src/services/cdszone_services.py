@@ -2,7 +2,7 @@ import os, io, requests
 from base64 import b64encode
 from typing import Any, Dict, Tuple, Optional
 
-from src.services.config_loader_services import config_loader
+from services.config_loader_services import config_loader
 
 DEFAULT_CDS_URL = "https://api.cdszone2.com/api/organizer/process"
 CDS_URL = config_loader.get("cdszone2", "base_url", env="CDS_URL", default=DEFAULT_CDS_URL)
