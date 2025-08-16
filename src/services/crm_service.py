@@ -65,7 +65,7 @@ class SSICRMService:
         title: str,
         category: str,
         status: int,
-        description: str = "description",
+        description: str,
     ) -> Optional[Dict[str, Any]]:
         """
         Updates unmapped document fields in SSICRM.
