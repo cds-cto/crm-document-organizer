@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from services.config_loader_services import config_loader
 
 DEFAULT_SSICRM_URL = "https://ssi-crm.com/api"
-SSICRM_MAIN_URL = config_loader.get("ssicrm", "base_url", env="SSICRM_MAIN_URL", default=DEFAULT_SSICRM_URL)
+SSICRM_MAIN_URL = config_loader.get("ssiapi", "base_url", env="SSICRM_MAIN_URL", default=DEFAULT_SSICRM_URL)
 
 class SSICRMService:
     """
@@ -65,7 +65,6 @@ class SSICRMService:
         title: str,
         category: str,
         status: int,
-        description: str,
     ) -> Optional[Dict[str, Any]]:
         """
         Updates unmapped document fields in SSICRM.
@@ -80,7 +79,7 @@ class SSICRMService:
             "liabilityId": liability_id,
             "title": title,
             "category": category,
-            "description": description,
+            "description": "",
             "status": status,
         }
         res = self.r.put(url, json=data, headers=headers, timeout=60)
@@ -89,6 +88,31 @@ class SSICRMService:
             return None
         return res.json()
 
+    def set_pending(
+        self,
+        document_id: str,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Updates unmapped document fields in SSICRM.
+        'category' should be the UUID returned by CDS (category_uuid) if SSICRM expects UUID.
+        """
+        self._require_auth()
+        headers = {"Content-Type": "application/json", "authorization": f"Bearer {self.token}"}
+        url = f"{SSICRM_MAIN_URL}/UnMappedDocument/{document_id}"  # ensure /save
+        data = {
+            "documentId": document_id,
+            "profileId": None,
+            "liabilityId": None,
+            "title": None,
+            "category": None,
+            "description": None,
+            "status": 1,
+        }
+        res = self.r.put(url, json=data, headers=headers, timeout=60)
+        if res.status_code != 200:
+            print(f"Failed to save changes for document {document_id}. Status code: {res.status_code}")
+            return None
+        return res.json()
     # ------------------ Download helper ------------------
     def download_file(self, file_url: str) -> Tuple[io.BytesIO, str, str]:
         """

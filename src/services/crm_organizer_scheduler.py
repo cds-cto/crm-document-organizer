@@ -75,6 +75,9 @@ class DocumentProcessingFlow:
             doc_id = d.get("documentId")
             if not doc_id:
                 continue
+            print(f"Setting document {doc_id} to pending...")
+            self.crm.set_pending(doc_id)
+            print(f"Processing document {doc_id}...")
             r = self.process_document(doc_id, save_to_ssicrm=save_to_ssicrm)
             print(f"[{doc_id}] → {r.get('filename')} → CDS {r.get('cds_http_status')} {'(saved)' if r.get('saved') else ''}")
             results.append(r)
