@@ -103,7 +103,7 @@ class SSICRMService:
             "documentId": document_id,
             "profileId": None,
             "liabilityId": None,
-            "title": None,
+            "title": "Pending File",
             "category": None,
             "description": None,
             "status": 1,
