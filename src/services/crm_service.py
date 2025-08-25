@@ -113,16 +113,32 @@ class SSICRMService:
             print(f"Failed to save changes for document {document_id}. Status code: {res.status_code}")
             return None
         return res.json()
+    
+    def clear_pending(self, document_id: str) -> Optional[Dict[str, Any]]:
+        self._require_auth()
+        headers = {"Content-Type": "application/json", "authorization": f"Bearer {self.token}"}
+        url = f"{SSICRM_MAIN_URL}/UnMappedDocument/{document_id}"
+
+        data = {
+            "documentId": document_id,
+            "profileId": None,
+            "liabilityId": None,
+            "title": "Pending File",
+            "category": None,
+            "description": "",
+            "status": 0,
+        }
+
+        res = self.r.put(url, json=data, headers=headers, timeout=60)
+        if res.status_code != 200:
+            print(f"Failed to clear pending for document {document_id}. Status code: {res.status_code}; Body: {res.text[:400]}")
+            return None
+        return res.json()
+
     # ------------------ Download helper ------------------
     def download_file(self, file_url: str) -> Tuple[io.BytesIO, str, str]:
-        """
-        Downloads a file from a preview URL.
-        Returns: (bytes_io, filename, mime_type)
-        """
         with self.r.get(file_url, stream=True, timeout=120) as resp:
             resp.raise_for_status()
-
-            # Try filename from Content-Disposition; fallback to URL path
             cd = resp.headers.get("Content-Disposition", "")
             filename = None
             if "filename=" in cd:

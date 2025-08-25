@@ -2,6 +2,8 @@ from typing import Any, Dict, List, Optional
 from services.cdszone_services import CDSZone2Service
 from services.crm_service import SSICRMService
 
+import os,time
+
 class DocumentProcessingFlow:
     """
     Implements: search → preview → download → post to CDS → save back to SSICRM
@@ -63,23 +65,39 @@ class DocumentProcessingFlow:
         return result
 
     def process_all_unmapped(self, save_to_ssicrm: bool = True, limit: Optional[int] = None) -> List[Dict[str, Any]]:
-        """
-        Processes all (or the first `limit`) unmapped documents.
-        """
         results: List[Dict[str, Any]] = []
         docs = self.crm.search_unmapped_documents()
         if limit is not None:
             docs = docs[:limit]
 
+        per_doc_sleep_secs = float(os.getenv("PER_DOC_SLEEP_SECS", "0.8"))
+
         for d in docs:
             doc_id = d.get("documentId")
             if not doc_id:
                 continue
+
             print(f"Setting document {doc_id} to pending...")
             self.crm.set_pending(doc_id)
-            print(f"Processing document {doc_id}...")
-            r = self.process_document(doc_id, save_to_ssicrm=save_to_ssicrm)
-            print(f"[{doc_id}] → {r.get('filename')} → CDS {r.get('cds_http_status')} {'(saved)' if r.get('saved') else ''}")
-            results.append(r)
+
+            saved = False
+            try:
+                print(f"Processing document {doc_id}...")
+                r = self.process_document(doc_id, save_to_ssicrm=save_to_ssicrm)
+                saved = bool(r.get("saved"))
+                print(f"[{doc_id}] → {r.get('filename')} → CDS {r.get('cds_http_status')} {'(saved)' if saved else ''}")
+                results.append(r)
+            finally:
+                # If saving failed (e.g., CDS 4xx/5xx or SSICRM save error), return doc to queue
+                if save_to_ssicrm and not saved:
+                    try:
+                        self.crm.clear_pending(doc_id)
+                        print(f"Cleared pending for {doc_id} after failure.")
+                    except Exception as e:
+                        print(f"WARNING: failed to clear pending for {doc_id}: {e}")
+
+                # gentle backoff between documents to avoid hammering the server
+                if per_doc_sleep_secs > 0:
+                    time.sleep(per_doc_sleep_secs)
 
         return results
