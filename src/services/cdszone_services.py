@@ -19,8 +19,19 @@ class CDSZone2Service:
         self.headers = {"Authorization": f"Basic {token}", "Connection": "keep-alive"}
 
     def post_file(self, file_buf: io.BytesIO, filename: str, mime_type: str, document_id: str) -> Tuple[int, Dict[str, Any]]:
-        files = {"file": (filename, file_buf, mime_type)}
-        resp = requests.post(self.base_url, headers=self.headers, files=files, document_id=document_id, timeout=180)
+        files = {
+            "file": (filename, file_buf, mime_type)
+        }
+        data = {
+            "documentId": document_id
+        }
+        resp = requests.post(
+            self.base_url,
+            headers=self.headers,
+            files=files,
+            data=data,
+            timeout=180
+        )
         try:
             return resp.status_code, resp.json()
         except Exception:

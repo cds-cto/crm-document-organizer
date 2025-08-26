@@ -41,7 +41,7 @@ class DocumentProcessingFlow:
             result["filename"] = filename
 
             # 3) CDS post
-            status, payload = self.cds.post_file(file_buf, filename, mime_type, document_id=document_id)
+            status, payload = self.cds.post_file(file_buf, filename, mime_type, document_id)
             result["cds_http_status"] = status
             result["cds_payload"] = payload
 
