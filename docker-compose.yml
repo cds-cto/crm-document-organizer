@@ -1,20 +1,26 @@
-version: "3.9"
+version: "3.12.7"
 
 services:
   app:
-    build: .
     container_name: document_organizer
+    build:
+      context: .
+      dockerfile: Dockerfile
+    platform: linux/amd64
     working_dir: /code
-    # command: uvicorn src.main:app --host 0.0.0.0 --port 80 --workers 4
-    # command: uvicorn src.main:app --host 0.0.0.0 --port 80 --reload
-    command: python -u -m src.main
-    ports:
-      - 80:80        # not used by the script; safe to remove if you like
-      - 5679:5679    # keep if you attach a debugger
+    # Use the Dockerfile's CMD: ["python", "./src/main.py"]
+    # (remove the command override)
+    # command: ["python", "-u", "-m", "src.main"]  # <-- delete this line
     volumes:
       - .:/code
+    ports:
+      - "5679:5679"
+    environment:
+      - PYTHONUNBUFFERED=1
     dns:
       - 8.8.8.8
+
+
     # no restart policy: container exits when the flow finishes
 
 # detach mode + rebuild : docker compose up --build -d
