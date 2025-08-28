@@ -72,7 +72,7 @@ class SSICRMService:
         """
         self._require_auth()
         headers = {"Content-Type": "application/json", "authorization": f"Bearer {self.token}"}
-        url = f"{SSICRM_MAIN_URL}/UnMappedDocument/{document_id}"  # ensure /save
+        url = f"{SSICRM_MAIN_URL}/UnMappedDocument/{document_id}" 
         data = {
             "documentId": document_id,
             "profileId": profile_id,
