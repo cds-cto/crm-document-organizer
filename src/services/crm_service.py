@@ -36,8 +36,11 @@ class SSICRMService:
         url = f"{SSICRM_MAIN_URL}/UnMappedDocument/search"
         data = {
             "start": 0,
-            "length": 10_000_000,
-            "columns": [{"columnName": "status", "search": {"value": 0, "operator": 0}}],
+            "length": 300,
+            "columns": [
+                {"columnName": "status", "search": {"value": 0, "operator": 0}},
+                # {"columnName": "originDocumentReferenceType", "search": {"value": "1", "operator": 0}}
+            ]
         }
         res = self.r.post(url, json=data, headers=headers, timeout=60)
         res.raise_for_status()
