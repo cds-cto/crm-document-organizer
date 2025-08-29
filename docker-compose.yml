@@ -2,7 +2,7 @@ version: "3.12.7"
 
 services:
   app:
-    container_name: document_organizer
+    container_name: document_organizer_scheduler
     build:
       context: .
       dockerfile: Dockerfile
