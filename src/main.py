@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import json
+import debugpy
 
 # from src.services.config_loader_services import config_loader
 from services import SSICRMService, CDSZone2Service, DocumentProcessingFlow, config_loader
@@ -28,4 +29,7 @@ def main():
 
 
 if __name__ == "__main__":
+    # debugpy.listen(("0.0.0.0", 5679))
+    # debugpy.wait_for_client()
+    # breakpoint()
     main()

@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from services.config_loader_services import config_loader
 
-DEFAULT_SSICRM_URL = "https://ssi-crm.com/api"
+DEFAULT_SSICRM_URL = "https://ssiapi.com/api"
 SSICRM_MAIN_URL = config_loader.get("ssicrm", "base_url", env="SSICRM_MAIN_URL", default=DEFAULT_SSICRM_URL)
 
 class SSICRMService:
