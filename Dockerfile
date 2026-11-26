@@ -15,6 +15,9 @@ ENV DOCKER_CONTENT_TRUST 1
 
 ENV APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=DontWarn
 
+# GCP project that holds the Secret Manager secrets (read by src/start_up.py)
+ENV GCP_PROJECT=320354900727
+
 # Updates packages list for the image
 RUN apt-get update
 

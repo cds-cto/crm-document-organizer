@@ -2,19 +2,17 @@
 import json
 import debugpy
 
-# from src.services.config_loader_services import config_loader
-from services import SSICRMService, CDSZone2Service, DocumentProcessingFlow, config_loader
+from constant import GCP_SECRET
+from services import SSICRMService, CDSZone2Service, DocumentProcessingFlow
+from start_up import register_startup_event, split_user_pass
 
 # Debug
 # import debugpy
 # debugpy.listen(("0.0.0.0", 5679))
 
 def main():
-    # Credentials (config.ini → env → default)
-    ssicrm_user = config_loader.get("ssicrm", "username", env="SSICRM_USER", default="")
-    ssicrm_pass = config_loader.get("ssicrm", "password", env="SSICRM_PASS", default="")
-    cds_user = config_loader.get("cdszone2", "username", env="CDS_USER", default="")
-    cds_pass = config_loader.get("cdszone2", "password", env="CDS_PASS", default="")
+    ssicrm_user, ssicrm_pass = split_user_pass(GCP_SECRET.SSICRM_LOGIN)
+    cds_user, cds_pass = split_user_pass(GCP_SECRET.CDS_LOGIN)
 
     # Services
     crm = SSICRMService()
@@ -32,4 +30,5 @@ if __name__ == "__main__":
     # debugpy.listen(("0.0.0.0", 5679))
     # debugpy.wait_for_client()
     # breakpoint()
+    register_startup_event()
     main()
