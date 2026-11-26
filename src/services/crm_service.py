@@ -2,10 +2,9 @@ import os, io, json, mimetypes, requests
 from urllib.parse import urlparse, unquote
 from typing import Any, Dict, List, Optional, Tuple
 
-from services.config_loader_services import config_loader
+from constant import APP_SETTING
 
-DEFAULT_SSICRM_URL = "https://ssiapi.com/api"
-SSICRM_MAIN_URL = config_loader.get("ssicrm", "base_url", env="SSICRM_MAIN_URL", default=DEFAULT_SSICRM_URL)
+SSICRM_MAIN_URL = APP_SETTING.SSICRM_URL
 
 class SSICRMService:
     """

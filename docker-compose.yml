@@ -17,6 +17,10 @@ services:
       - "5679:5679"
     environment:
       - PYTHONUNBUFFERED=1
+      - GCP_PROJECT=320354900727
+      # Local only: service account key (gitignored), mounted through ".:/code".
+      # On Cloud Run the attached service account is used instead.
+      - GOOGLE_APPLICATION_CREDENTIALS=/code/crm-document-organizer-gcp-secret.json
     dns:
       - 8.8.8.8
 

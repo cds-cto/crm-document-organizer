@@ -53,15 +53,15 @@ documents to avoid hammering the upstream services.
 ```
 crm-document-organizer/
 ├── src/
-│   ├── main.py                              # Entry point: login + process all unmapped
-│   ├── config/
-│   │   └── config.ini                       # Local config (gitignored)
+│   ├── main.py                              # Entry point: load secrets, login, process all unmapped
+│   ├── constant.py                          # GCP secret names + fixed URLs
+│   ├── start_up.py                          # Loads secrets from GCP Secret Manager
 │   └── services/
 │       ├── __init__.py                      # Re-exports the public service classes
 │       ├── crm_service.py                   # SSICRMService – SSICRM REST client
 │       ├── cdszone_services.py              # CDSZone2Service – CDS organizer client
 │       ├── crm_organizer_scheduler.py       # DocumentProcessingFlow – orchestration
-│       └── config_loader_services.py        # ConfigLoader – config.ini + env resolution
+│       └── gcloud_service.py                # GoogleCloudServices – Secret Manager client
 ├── Dockerfile
 ├── docker-compose.yml
 ├── requirements.txt
@@ -70,43 +70,34 @@ crm-document-organizer/
 
 ## Configuration
 
-Configuration is resolved by `ConfigLoader` in this order:
+Credentials are read from **GCP Secret Manager** at startup (`src/start_up.py`). There is no
+`config.ini` and no credential environment variable.
 
-1. A matching `[section] key` in `config.ini`
-2. The named environment variable
-3. A built-in default
+| Secret (`src/constant.py` → `GCP_SECRET`) | Secret Manager name              | Format          |
+| ----------------------------------------- | -------------------------------- | --------------- |
+| `SSICRM_LOGIN`                            | `ssicrm-login-cred-docorganizer` | `user:password` |
+| `CDS_LOGIN`                               | `cdszone2-auth-api-cred`         | `user:password` |
 
-`config.ini` is searched for (in order) at the path in `CONFIG_INI_PATH`, then
-`src/config.ini`, `src/config/config.ini`, `src/services/config.ini`, and
-`src/services/config/config.ini`. The actual file used is `src/config/config.ini`, which is
-**gitignored** — create it locally and never commit credentials.
+Only the first `:` splits the value, so the password may contain `:`.
 
-### `config.ini` example
+Fixed, non-secret values live in `src/constant.py` → `APP_SETTING`:
 
-```ini
-[ssicrm]
-base_url = https://ssiapi.com/api
-username = your-ssicrm-user
-password = your-ssicrm-password
+| Setting    | Value                                            |
+| ---------- | ------------------------------------------------ |
+| `SSICRM_URL` | `https://ssiapi.com/api`                       |
+| `CDS_URL`    | `https://api.cdszone2.com/api/organizer/process` |
 
-[cdszone2]
-base_url = https://api.cdszone2.com/api/organizer/process
-username = your-cds-user
-password = your-cds-password
-```
+### Environment variables
 
-### Settings reference
+| Variable                         | Purpose                                                        |
+| -------------------------------- | -------------------------------------------------------------- |
+| `GCP_PROJECT`                    | Project holding the secrets (`320354900727` = `polling-apps`); required |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Service account key path, local runs only                      |
+| `PER_DOC_SLEEP_SECS`             | Delay between documents, default `0.8` seconds                 |
 
-| Setting    | `config.ini`            | Environment variable | Default                                              |
-| ---------- | ----------------------- | -------------------- | ---------------------------------------------------- |
-| SSICRM URL | `[ssicrm] base_url`     | `SSICRM_MAIN_URL`    | `https://ssiapi.com/api`                             |
-| SSICRM user| `[ssicrm] username`     | `SSICRM_USER`        | _(empty)_                                            |
-| SSICRM pass| `[ssicrm] password`     | `SSICRM_PASS`        | _(empty)_                                            |
-| CDS URL    | `[cdszone2] base_url`   | `CDS_URL`            | `https://api.cdszone2.com/api/organizer/process`     |
-| CDS user   | `[cdszone2] username`   | `CDS_USER`           | _(empty)_                                            |
-| CDS pass   | `[cdszone2] password`   | `CDS_PASS`           | _(empty)_                                            |
-| Config path| —                       | `CONFIG_INI_PATH`    | _(auto-discovered)_                                  |
-| Per-doc delay | —                    | `PER_DOC_SLEEP_SECS` | `0.8` (seconds)                                      |
+The service account `crm-document-organizer@polling-apps.iam.gserviceaccount.com` has
+`roles/secretmanager.secretAccessor` on both secrets. Locally, use its key file
+`crm-document-organizer-gcp-secret.json` in the repo root (**gitignored**, never commit it).
 
 ## Prerequisites
 
@@ -124,9 +115,11 @@ venv\Scripts\activate        # Windows
 # source venv/bin/activate   # macOS / Linux
 pip install -r requirements.txt
 
-# 2. Provide configuration
-#    Create src/config/config.ini (see example above) OR export the env vars:
-#    SSICRM_USER, SSICRM_PASS, CDS_USER, CDS_PASS
+# 2. Point to GCP (service account key in the repo root)
+set GCP_PROJECT=320354900727
+set GOOGLE_APPLICATION_CREDENTIALS=crm-document-organizer-gcp-secret.json
+# export GCP_PROJECT=320354900727                                          # macOS / Linux
+# export GOOGLE_APPLICATION_CREDENTIALS=crm-document-organizer-gcp-secret.json
 
 # 3. Run the job
 python src/main.py
@@ -142,6 +135,9 @@ document (preview URL, filename, CDS HTTP status, CDS payload, and save result).
 docker-compose up --build
 ```
 
+`docker-compose.yml` sets `GCP_PROJECT` and points `GOOGLE_APPLICATION_CREDENTIALS` at the
+key file mounted through `.:/code`, so the key must exist in the repo root.
+
 The image is built for `linux/amd64` on `python:3.12.7` and runs `python ./src/main.py`.
 Port `5679` is exposed for remote debugging via `debugpy` (see below).
 
@@ -155,8 +151,9 @@ docker tag crm-document-organizer us-west2-docker.pkg.dev/polling-apps/core/crm-
 docker push us-west2-docker.pkg.dev/polling-apps/core/crm-document-organizer:latest
 ```
 
-Run the pushed image on a scheduler (e.g. Cloud Run Jobs / Kubernetes CronJob) with the
-SSICRM and CDS credentials supplied as environment variables.
+Run the pushed image on a scheduler (e.g. Cloud Run Jobs) as the
+`crm-document-organizer@polling-apps.iam.gserviceaccount.com` service account. `GCP_PROJECT` is
+set in the Dockerfile; no key file is needed there.
 
 ## Remote debugging
 
